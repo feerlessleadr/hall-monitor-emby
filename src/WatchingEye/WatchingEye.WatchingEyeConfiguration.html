@@ -114,7 +114,6 @@
             <h1 class="pageTitle">Watching Eye</h1>
 
             <div data-role="controlgroup" data-type="horizontal" class="localnav">
-                <a is="emby-linkbutton" class="nav-button" href="#" data-role="button" data-target="notificationsPage">Notifications</a>
                 <a is="emby-linkbutton" class="nav-button ui-btn-active" href="#" data-role="button" data-target="limiterPage">Watch Time Limiter</a>
                 <a is="emby-linkbutton" class="nav-button" href="#" data-role="button" data-target="libraryRestrictionsPage">Library Restrictions</a>
                 <a is="emby-linkbutton" class="nav-button" href="#" data-role="button" data-target="loggingPage">Logging</a>
@@ -122,39 +121,6 @@
             </div>
 
             <form class="watchingEyeForm">
-                <div id="notificationsPage" class="hide">
-                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
-                        <div class="firewall-info-box" style="margin-bottom: 2em;">
-                            <h3 style="margin-top: 0;">Confirmation Button Compatibility</h3>
-                            <p style="margin: 0.5em 0 0 0;">
-                                Please note: The 'Show confirmation button' feature creates a message that requires manual dismissal. This works best in <strong>web-based clients</strong>.
-                                Due to limitations in other applications, on clients like <strong>Android, Fire TV, or Roku</strong>, the message will instead appear as a long-lasting pop-up that disappears on its own.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
-                        <h2 style="margin-top: 0;">General Notification Settings</h2>
-
-                        <div class="inputContainer">
-                            <label class="label-text-field">Excluded Users:</label>
-                            <div id="excludedUsersContainer" class="exclusion-list"></div>
-                            <div class="fieldDescription">Notifications will not be sent to these users.</div>
-                        </div>
-
-                        <div class="inputContainer">
-                            <label class="label-text-field">Excluded Clients:</label>
-                            <div id="excludedClientsContainer" class="exclusion-list"></div>
-                            <div class="fieldDescription">Notifications will not be sent to these clients. This is case-insensitive.</div>
-                        </div>
-
-                        <div class="inputContainer">
-                            <label class="label-text-field">Excluded Libraries:</label>
-                            <div id="excludedLibrariesContainer" class="exclusion-list"></div>
-                            <div class="fieldDescription">Notifications and playback rules will not apply to items in these libraries.</div>
-                        </div>
-                    </div>
-                </div>
-
                 <div id="limiterPage">
                     <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
                         <div class="checkboxContainer">
@@ -164,7 +130,7 @@
 
                         <div class="inputContainer">
                             <label><input is="emby-checkbox" type="checkbox" id="chkEnableConfirmationButtonOnWatchTimeLimit" data-config-key="EnableConfirmationButtonOnWatchTimeLimit" /><span>Show confirmation button for Watch Time Limit messages</span></label>
-                            <div class="fieldDescription">If enabled, messages sent by the watch time limiter will require manual dismissal.</div>
+                            <div class="fieldDescription">If enabled, messages sent by the watch time limiter will require manual dismissal. This works best in web-based clients; on Android, Fire TV or Roku the message instead appears as a long-lasting pop-up that disappears on its own.</div>
                         </div>
 
                         <div class="checkboxContainer">

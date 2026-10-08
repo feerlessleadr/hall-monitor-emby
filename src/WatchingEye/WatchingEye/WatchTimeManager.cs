@@ -94,10 +94,6 @@ public static class WatchTimeManager
 		{
 			return null;
 		}
-		if (config.ExcludedUserIds.Contains(userId, StringComparer.OrdinalIgnoreCase))
-		{
-			return null;
-		}
 		LimitedUser limitedUser = config.LimitedUsers.FirstOrDefault((LimitedUser u) => u.UserId.Equals(userId, StringComparison.OrdinalIgnoreCase));
 		if (limitedUser != null)
 		{

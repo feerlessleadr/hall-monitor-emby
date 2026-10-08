@@ -25,10 +25,6 @@ public static class PlaybackMonitor
 
 	private static bool _isRunning;
 
-	private static List<string>? _excludedLibraryPathsCache;
-
-	private static string _cachedConfigVersion = string.Empty;
-
 	private static Dictionary<string, string>? _locationToLibraryIdCache;
 
 	private static string _locationCacheConfigVersion = string.Empty;
@@ -56,55 +52,6 @@ public static class PlaybackMonitor
 		}
 	}
 
-	private static bool IsSessionExcluded(SessionInfo session, PluginConfiguration config)
-	{
-		if (session == null || config == null || _logger == null || _sessionManager == null || _libraryManager == null || string.IsNullOrEmpty(session.UserId) || session.NowPlayingItem == null)
-		{
-			return true;
-		}
-		if (config.ExcludedUserIds.Contains(session.UserId))
-		{
-			return true;
-		}
-		if (config.ExcludedClients.Contains(session.Client, StringComparer.OrdinalIgnoreCase))
-		{
-			return true;
-		}
-		List<string> source;
-		lock (_cacheLock)
-		{
-			if (config.ConfigurationVersion != _cachedConfigVersion)
-			{
-				_logger.Info("[PlaybackMonitor] Configuration has changed, rebuilding excluded library path cache.", Array.Empty<object>());
-				List<string> list = new List<string>();
-				HashSet<string> hashSet = new HashSet<string>(config.ExcludedLibraryIds);
-				if (hashSet.Any())
-				{
-					List<VirtualFolderInfo> virtualFolders = _libraryManager.GetVirtualFolders();
-					foreach (VirtualFolderInfo item in virtualFolders)
-					{
-						if (hashSet.Contains(item.Id.ToString()))
-						{
-							list.AddRange(item.Locations);
-						}
-					}
-				}
-				_excludedLibraryPathsCache = list;
-				_cachedConfigVersion = config.ConfigurationVersion;
-			}
-			source = _excludedLibraryPathsCache ?? new List<string>();
-		}
-		if (source.Any())
-		{
-			BaseItem fullItem = LibraryManagerExtensions.GetItemById(_libraryManager, session.NowPlayingItem.Id);
-			if (fullItem != null && !string.IsNullOrEmpty(fullItem.Path) && source.Any((string p) => fullItem.Path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
 	private static bool IsOutsideLibraryTimeWindow(LibraryTimeRestriction restriction, DateTime now)
 	{
 		if (restriction.AllowedDays != null && restriction.AllowedDays.Count < 7 && !restriction.AllowedDays.Contains((int)now.DayOfWeek))
@@ -127,7 +74,7 @@ public static class PlaybackMonitor
 		{
 			PluginConfiguration config = ((BasePlugin<PluginConfiguration>)(object)Plugin.Instance)?.Configuration;
 			SessionInfo session = e.Session;
-			if (session == null || config == null || IsSessionExcluded(session, config))
+			if (session == null || config == null || string.IsNullOrEmpty(session.UserId) || session.NowPlayingItem == null)
 			{
 				return;
 			}

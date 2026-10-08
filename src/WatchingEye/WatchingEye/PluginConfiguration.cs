@@ -10,12 +10,6 @@ public class PluginConfiguration : BasePluginConfiguration
 
 	public bool EnableConfirmationButtonOnWatchTimeLimit { get; set; } = false;
 
-	public List<string> ExcludedUserIds { get; set; } = new List<string>();
-
-	public List<string> ExcludedClients { get; set; } = new List<string>();
-
-	public List<string> ExcludedLibraryIds { get; set; } = new List<string>();
-
 	public bool EnableWatchTimeLimiter { get; set; } = false;
 
 	public bool EnableWatchLimitNotifications { get; set; } = false;
@@ -37,9 +31,6 @@ public class PluginConfiguration : BasePluginConfiguration
 	public PluginConfiguration()
 	{
 		LimitedUsers = new List<LimitedUser>();
-		ExcludedUserIds = new List<string>();
-		ExcludedClients = new List<string>();
-		ExcludedLibraryIds = new List<string>();
 		LibraryTimeRestrictions = new List<LibraryTimeRestriction>();
 	}
 }

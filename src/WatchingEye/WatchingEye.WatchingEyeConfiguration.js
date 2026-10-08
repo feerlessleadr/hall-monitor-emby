@@ -16,9 +16,6 @@
         return ApiClient.getJSON(ApiClient.getUrl("WatchingEye/LimitedUsersStatus"));
     }
 
-    function getClientList() {
-        return ApiClient.getJSON(ApiClient.getUrl("WatchingEye/GetClientList"));
-    }
 
     function getLogEvents() {
         return ApiClient.getJSON(ApiClient.getUrl("WatchingEye/GetLogEvents"));
@@ -92,7 +89,6 @@
             this.watchStatusInterval = null;
             this.editingUserId = null;
             this.allUsers = [];
-            this.allClients = [];
             this.allLibraries = [];
             this.editingLibraryId = null;
 
@@ -114,7 +110,7 @@
                     view.querySelectorAll('.localnav .nav-button').forEach(b => b.classList.remove('ui-btn-active'));
                     target.classList.add('ui-btn-active');
 
-                    view.querySelectorAll('#notificationsPage, #limiterPage, #loggingPage, #remoteAccessPage, #libraryRestrictionsPage').forEach(page => {
+                    view.querySelectorAll('#limiterPage, #loggingPage, #remoteAccessPage, #libraryRestrictionsPage').forEach(page => {
                         page.classList.toggle('hide', page.id !== targetId);
                     });
 
@@ -1011,41 +1007,16 @@
             });
         }
 
-        renderExclusionLists(view, config) {
-            const usersContainer = view.querySelector('#excludedUsersContainer');
-            const clientsContainer = view.querySelector('#excludedClientsContainer');
-            const librariesContainer = view.querySelector('#excludedLibrariesContainer');
-
-            usersContainer.innerHTML = this.allUsers.map(user => {
-                const isChecked = (config.ExcludedUserIds || []).includes(user.Id);
-                return `<label><input is="emby-checkbox" type="checkbox" class="excludedUser" data-userid="${user.Id}" ${isChecked ? 'checked' : ''} /><span>${user.Name}</span></label>`;
-            }).join('');
-
-            clientsContainer.innerHTML = this.allClients.map(client => {
-                const isChecked = (config.ExcludedClients || []).some(c => c.toLowerCase() === client.toLowerCase());
-                return `<label><input is="emby-checkbox" type="checkbox" class="excludedClient" data-client="${client}" ${isChecked ? 'checked' : ''} /><span>${client}</span></label>`;
-            }).join('');
-
-            const ignoredLibraryTypes = ['collections', 'playlists', 'boxsets'];
-            const displayLibraries = this.allLibraries.filter(lib => !lib.CollectionType || !ignoredLibraryTypes.includes(lib.CollectionType.toLowerCase()));
-
-            librariesContainer.innerHTML = displayLibraries.map(lib => {
-                const isChecked = (config.ExcludedLibraryIds || []).includes(lib.Id);
-                return `<label><input is="emby-checkbox" type="checkbox" class="excludedLibrary" data-library-id="${lib.Id}" ${isChecked ? 'checked' : ''} /><span>${lib.Name}</span></label>`;
-            }).join('');
-        }
 
         loadData(view) {
             loading.show();
             Promise.all([
                 getPluginConfiguration(),
                 ApiClient.getUsers(),
-                getClientList(),
                 ApiClient.getVirtualFolders()
-            ]).then(([config, users, clients, virtualFolders]) => {
+            ]).then(([config, users, virtualFolders]) => {
                 this.config = config;
                 this.allUsers = users;
-                this.allClients = clients;
                 this.allLibraries = virtualFolders.Items;
 
                 view.querySelectorAll('[data-config-key]').forEach(el => {
@@ -1062,7 +1033,6 @@
                 this.editingUserId = null;
                 this.editingLibraryId = null;
                 this.renderLimitedUsers(view, this.config);
-                this.renderExclusionLists(view, this.config);
                 this.renderLibraryRestrictions(view, this.config);
                 loading.hide();
             }).catch(err => {
@@ -1094,9 +1064,6 @@
             });
 
 
-            this.config.ExcludedUserIds = Array.from(view.querySelectorAll('.excludedUser:checked')).map(cb => cb.getAttribute('data-userid'));
-            this.config.ExcludedClients = Array.from(view.querySelectorAll('.excludedClient:checked')).map(cb => cb.getAttribute('data-client'));
-            this.config.ExcludedLibraryIds = Array.from(view.querySelectorAll('.excludedLibrary:checked')).map(cb => cb.getAttribute('data-library-id'));
 
 
             updatePluginConfiguration(this.config).then(result => {

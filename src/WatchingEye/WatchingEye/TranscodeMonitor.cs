@@ -442,8 +442,6 @@ public static class TranscodeMonitor
 		{
 			MediaStream videoStream = currentSession.NowPlayingItem.MediaStreams.FirstOrDefault((MediaStream s) =>
 			{
-				//IL_0001: Unknown result type (might be due to invalid IL or missing references)
-				//IL_0007: Invalid comparison between Unknown and I4
 				return (int)s.Type == 2;
 			});
 			if (videoStream != null)

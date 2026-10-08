@@ -36,10 +36,6 @@ public static class ServerNotificationService
 
 	public static void SendLimitReachedNotification(string username, string clientName)
 	{
-		//IL_001e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0023: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_004b: Expected Obj, but got Unknown
 		if (_isRunning && _notificationManager != null)
 		{
 			_notificationManager.SendNotification(new NotificationRequest
@@ -57,10 +53,6 @@ public static class ServerNotificationService
 
 	public static void SendThresholdNotification(string username, string period, int threshold)
 	{
-		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0026: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00cd: Expected Obj, but got Unknown
 		if (_isRunning && _notificationManager != null)
 		{
 			_notificationManager.SendNotification(new NotificationRequest

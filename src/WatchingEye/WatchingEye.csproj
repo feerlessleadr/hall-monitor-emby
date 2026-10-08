@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>WatchingEye</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <TargetFramework>net6.0</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>14.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="WatchingEye.Images.logo.jpg" />
+    <None Remove="WatchingEye.WatchingEyeConfiguration.html" />
+    <None Remove="WatchingEye.WatchingEyeConfiguration.js" />
+    <EmbeddedResource Include="WatchingEye.Images.logo.jpg" LogicalName="WatchingEye.Images.logo.jpg" />
+    <EmbeddedResource Include="WatchingEye.WatchingEyeConfiguration.html" LogicalName="WatchingEye.WatchingEyeConfiguration.html" />
+    <EmbeddedResource Include="WatchingEye.WatchingEyeConfiguration.js" LogicalName="WatchingEye.WatchingEyeConfiguration.js" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="MediaBrowser.Model" />
+    <Reference Include="MediaBrowser.Common" />
+    <Reference Include="MediaBrowser.Controller" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,486 @@
+﻿<div is="emby-scroller" class="view flex flex-direction-column scrollFrameY flex-grow" data-horizontal="false" data-forcescrollbar="true" data-centerfocus="true" data-bindheader="true" data-controller="__plugin/WatchingEyeConfigurationjs" data-title="Watching Eye">
+    <style>
+        .disabled-item .listItemBody, .disabled-item .listItemBody .secondary {
+            color: #999;
+        }
+
+        .logging-list .listItem:not(:first-child) {
+            border-top: 1px solid #222;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-editor {
+            padding: 1.5em;
+            background: rgba(0,0,0,.2);
+            border-radius: 5px;
+        }
+
+            .user-editor h3 {
+                margin: 1em 0;
+            }
+
+            .user-editor .inputContainer {
+                margin-top: 1em;
+            }
+
+        .user-editor-flex-container {
+            display: flex;
+            gap: 1.5em;
+            flex-wrap: wrap;
+        }
+
+            .user-editor-flex-container > div {
+                flex-grow: 1;
+                min-width: 200px;
+            }
+
+        .user-editor-buttons {
+            margin-top: 1.5em;
+            display: flex;
+            gap: 1em;
+        }
+
+        .exclusion-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 0.5em;
+            background: rgba(0,0,0,.1);
+            padding: 1em;
+            border-radius: 5px;
+            margin-top: 0.5em;
+        }
+
+        .firewall-info-box {
+            background-color: rgba(3, 169, 244, 0.1);
+            border: 1px solid rgba(3, 169, 244, 0.5);
+            border-left-width: 5px;
+            border-left-color: #03a9f4;
+            padding: 1em 1.5em;
+            margin-top: 1em;
+            border-radius: 5px;
+        }
+
+            .firewall-info-box h3 {
+                margin-top: 0;
+                color: #03a9f4;
+            }
+
+        .help-page h2 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+        }
+
+        .help-page h3 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            color: #52B54B;
+        }
+
+        .help-page p {
+            margin-bottom: 0.5em;
+            line-height: 1.5;
+        }
+
+        .help-page code {
+            background-color: rgba(0,0,0,0.3);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .help-page pre {
+            background-color: rgba(0,0,0,0.3);
+            padding: 1em;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .help-page ul {
+            margin-left: 2em;
+        }
+
+        .help-page li {
+            margin-bottom: 0.5em;
+        }
+    </style>
+    <div class="scrollSlider flex-direction-column padded-left padded-left-page padded-right padded-top-page padded-bottom-page">
+        <div class="readOnlyContent auto-center" style="max-width: 1200px;">
+            <h1 class="pageTitle">Watching Eye</h1>
+
+            <div data-role="controlgroup" data-type="horizontal" class="localnav">
+                <a is="emby-linkbutton" class="nav-button" href="#" data-role="button" data-target="notificationsPage">Notifications</a>
+                <a is="emby-linkbutton" class="nav-button ui-btn-active" href="#" data-role="button" data-target="limiterPage">Watch Time Limiter</a>
+                <a is="emby-linkbutton" class="nav-button" href="#" data-role="button" data-target="libraryRestrictionsPage">Library Restrictions</a>
+                <a is="emby-linkbutton" class="nav-button" href="#" data-role="button" data-target="loggingPage">Logging</a>
+                <a is="emby-linkbutton" class="nav-button" href="#" data-role="button" data-target="remoteAccessPage">External API</a>
+            </div>
+
+            <form class="watchingEyeForm">
+                <div id="notificationsPage" class="hide">
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <div class="firewall-info-box" style="margin-bottom: 2em;">
+                            <h3 style="margin-top: 0;">Confirmation Button Compatibility</h3>
+                            <p style="margin: 0.5em 0 0 0;">
+                                Please note: The 'Show confirmation button' feature creates a message that requires manual dismissal. This works best in <strong>web-based clients</strong>.
+                                Due to limitations in other applications, on clients like <strong>Android, Fire TV, or Roku</strong>, the message will instead appear as a long-lasting pop-up that disappears on its own.
+                            </p>
+                        </div>
+                        <h2 style="margin-top: 0;">Transcode Notification</h2>
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableTranscodeWarning" data-config-key="EnableTranscodeWarning" /><span>Enable Transcode Warning</span></label>
+                            <div class="fieldDescription">If enabled, a notification will be sent when a video starts transcoding.</div>
+                        </div>
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkNotifyOnContainerChange" data-config-key="NotifyOnContainerChange" /><span>Notify on Container Change (Remuxing)</span></label>
+                            <div class="fieldDescription">If enabled, a notification will be sent when only the container is changed (e.g., from MKV to MP4) without re-encoding the video or audio.</div>
+                        </div>
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkNotifyOnAudioOnlyTranscode" data-config-key="NotifyOnAudioOnlyTranscode" /><span>Notify On Any Audio Transcode</span></label>
+                            <div class="fieldDescription">If disabled, notifications will only be sent when the video stream is transcoding. If enabled, notifications will also be sent when only the audio is transcoding.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtMessageTextClientLimitation" label="Client Limitation Message:" data-config-key="MessageTextClientLimitation" />
+                            <div class="fieldDescription">Message to show when transcoding is due to client incompatibility. Use {reason} for details.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableConfirmationButtonOnTranscodeWarning" data-config-key="EnableConfirmationButtonOnTranscodeWarning" /><span>Show confirmation button for Transcode Warnings</span></label>
+                            <div class="fieldDescription">If enabled, transcode warning notifications will require manual dismissal.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtMessageTextBandwidthLimitation" label="Bandwidth Limitation Message:" data-config-key="MessageTextBandwidthLimitation" />
+                            <div class="fieldDescription">Message to show when transcoding is due to quality/bandwidth settings. Use {reason} for details.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtMessageText" label="Fallback Message Text:" data-config-key="MessageText" />
+                            <div class="fieldDescription">The text to display for any other transcode reason. Use {reason} to include the transcode reason.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="numMaxNotifications" label="Max Notifications per Session:" data-config-key="MaxNotifications" />
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="numInitialDelaySeconds" label="Initial Delay (seconds):" data-config-key="InitialDelaySeconds" />
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="numDelayBetweenMessagesSeconds" label="Delay Between Messages (seconds):" data-config-key="DelayBetweenMessagesSeconds" />
+                        </div>
+                    </div>
+
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <h2 style="margin-top: 0;">Transcode Blocking</h2>
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableTranscodeBlocking" data-config-key="EnableTranscodeBlocking" /><span>Enable Transcode Blocking</span></label>
+                            <div class="fieldDescription">If enabled, playback will be stopped if a transcode is triggered from a blocked source format.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkStopVideoTranscoding" data-config-key="StopVideoTranscoding" /><span>Stop Video Transcoding</span></label>
+                            <div class="fieldDescription">If enabled, playback will be blocked when video transcoding is detected.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkStopAudioTranscoding" data-config-key="StopAudioTranscoding" /><span>Stop Audio Transcoding</span></label>
+                            <div class="fieldDescription">If enabled, playback will be blocked when audio transcoding is detected.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableConfirmationButtonOnTranscodeBlock" data-config-key="EnableConfirmationButtonOnTranscodeBlock" /><span>Show confirmation button for Transcode Block</span></label>
+                            <div class="fieldDescription">If enabled, blocked transcode messages for blocked formats will require manual dismissal.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtBlockedTranscodeFormats" label="Blocked Source Formats:" data-config-key="BlockedTranscodeFormats" />
+                            <div class="fieldDescription">Comma-separated list of source container formats to block from transcoding (e.g., mkv,ts,avi,webm). This is not case-sensitive.</div>
+                        </div>
+                    </div>
+
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <h2 style="margin-top: 0;">Resolution Blocking</h2>
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableResolutionBlocking" data-config-key="EnableResolutionBlocking" /><span>Enable Resolution Blocking</span></label>
+                            <div class="fieldDescription">If enabled, playback will be stopped if a transcode is triggered for a video with a resolution higher than the specified limit.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="numMaxTranscodingResolution" label="Maximum Transcoding Resolution:" data-config-key="MaxTranscodingResolution" />
+                            <div class="fieldDescription">The maximum vertical resolution (e.g., 1080, 2160) to allow for transcoding.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtMessageTextResolutionBlocked" label="Resolution Block Message:" data-config-key="MessageTextResolutionBlocked" />
+                            <div class="fieldDescription">Custom message shown when a transcode is blocked due to resolution. Use {height} and {max} as placeholders.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableConfirmationButtonOnResolutionBlock" data-config-key="EnableConfirmationButtonOnResolutionBlock" /><span>Enable Confirmation Button for Resolution Block</span></label>
+                            <div class="fieldDescription">If enabled, the resolution block message will require manual dismissal.</div>
+                        </div>
+                    </div>
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <h2 style="margin-top: 0;">Concurrent Transcode Limit</h2>
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableConcurrentTranscodeLimit" data-config-key="EnableConcurrentTranscodeLimit" /><span>Enable Concurrent Transcode Limit</span></label>
+                            <div class="fieldDescription">If enabled, the server will limit the number of videos that can be transcoded simultaneously.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="numMaxConcurrentTranscodes" label="Maximum Concurrent Transcodes:" data-config-key="MaxConcurrentTranscodes" />
+                            <div class="fieldDescription">The maximum number of transcoding sessions allowed at the same time (e.g., 5).</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtMessageTextConcurrentTranscodeLimit" label="Concurrent Limit Message:" data-config-key="MessageTextConcurrentTranscodeLimit" />
+                            <div class="fieldDescription">Custom message shown when playback is blocked because the concurrent transcode limit has been reached.</div>
+                        </div>
+                    </div>
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <h2 style="margin-top: 0;">Direct Play Notification</h2>
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkNotifyOnDirectPlay" data-config-key="NotifyOnDirectPlay" /><span>Notify on Direct Play</span></label>
+                        </div>
+                        <div class="inputContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableConfirmationButtonOnDirectPlay" data-config-key="EnableConfirmationButtonOnDirectPlay" /><span>Show confirmation button for Direct Play</span></label>
+                            <div class="fieldDescription">If enabled, direct play notifications will require manual dismissal.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtDirectPlayMessageText" label="Direct Play Message Text:" data-config-key="DirectPlayMessageText" />
+                        </div>
+                    </div>
+
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <h2 style="margin-top: 0;">Playback Start Notification</h2>
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnablePlaybackStartNotification" data-config-key="EnablePlaybackStartNotification" /><span>Enable Playback Start Notification</span></label>
+                        </div>
+                        <div class="inputContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableConfirmationButtonOnPlaybackStart" data-config-key="EnableConfirmationButtonOnPlaybackStart" /><span>Show confirmation button for Playback Start</span></label>
+                            <div class="fieldDescription">If enabled, playback start notifications will require manual dismissal.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtPlaybackStartMessageText" label="Playback Start Message Text:" data-config-key="PlaybackStartMessageText" />
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="numPlaybackStartInitialDelaySeconds" label="Initial Delay (seconds):" data-config-key="PlaybackStartInitialDelaySeconds" />
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="numPlaybackStartMaxNotifications" label="Max Notifications per Session:" data-config-key="PlaybackStartMaxNotifications" />
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="numPlaybackStartDelayBetweenMessagesSeconds" label="Delay Between Messages (seconds):" data-config-key="PlaybackStartDelayBetweenMessagesSeconds" />
+                        </div>
+                    </div>
+
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <h2 style="margin-top: 0;">Paused Stream Timeout</h2>
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnablePausedStreamTimeout" data-config-key="EnablePausedStreamTimeout" /><span>Enable Paused Stream Timeout</span></label>
+                            <div class="fieldDescription">If enabled, playback will be stopped if a stream remains paused for longer than the specified duration. Exclusions will be respected.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" id="numPausedStreamTimeoutMinutes" label="Timeout Duration (minutes):" data-config-key="PausedStreamTimeoutMinutes" />
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtPausedStreamTimeoutMessage" label="Timeout Message:" data-config-key="PausedStreamTimeoutMessage" />
+                            <div class="fieldDescription">Message to display when a paused stream is stopped.</div>
+                        </div>
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableConfirmationButtonOnPausedStreamTimeout" data-config-key="EnableConfirmationButtonOnPausedStreamTimeout" /><span>Show confirmation button for Timeout message</span></label>
+                            <div class="fieldDescription">If enabled, the timeout message will require manual dismissal.</div>
+                        </div>
+                    </div>
+
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <h2 style="margin-top: 0;">General Notification Settings</h2>
+
+                        <div class="inputContainer">
+                            <label class="label-text-field">Excluded Users:</label>
+                            <div id="excludedUsersContainer" class="exclusion-list"></div>
+                            <div class="fieldDescription">Notifications will not be sent to these users.</div>
+                        </div>
+
+                        <div class="inputContainer">
+                            <label class="label-text-field">Excluded Clients:</label>
+                            <div id="excludedClientsContainer" class="exclusion-list"></div>
+                            <div class="fieldDescription">Notifications will not be sent to these clients. This is case-insensitive.</div>
+                        </div>
+
+                        <div class="inputContainer">
+                            <label class="label-text-field">Excluded Libraries:</label>
+                            <div id="excludedLibrariesContainer" class="exclusion-list"></div>
+                            <div class="fieldDescription">Notifications and transcode blocking will not apply to items in these libraries.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="limiterPage">
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableWatchTimeLimiter" data-config-key="EnableWatchTimeLimiter" /><span>Enable Watch Time Limiter</span></label>
+                            <div class="fieldDescription">If enabled, specified users will have a time limit on their watch time.</div>
+                        </div>
+
+                        <div class="inputContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableConfirmationButtonOnWatchTimeLimit" data-config-key="EnableConfirmationButtonOnWatchTimeLimit" /><span>Show confirmation button for Watch Time Limit messages</span></label>
+                            <div class="fieldDescription">If enabled, messages sent by the watch time limiter will require manual dismissal.</div>
+                        </div>
+
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableWatchLimitNotifications" data-config-key="EnableWatchLimitNotifications" /><span>Enable Server Notifications (e.g., Pushover)</span></label>
+                            <div class="fieldDescription">Sends a notification through Emby's notification system when a user reaches their time limit or a warning threshold.</div>
+                        </div>
+
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtWatchTimeLimitMessageText" label="Limit Reached Message Text:" data-config-key="WatchTimeLimitMessageText" />
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtTimeWindowBlockedMessageText" label="Time Window Blocked Message Text:" data-config-key="TimeWindowBlockedMessageText" />
+                            <div class="fieldDescription">Message shown when playback is blocked by the time window. Use {start_time} and {end_time} to show the user their allowed window.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtTimeOutMessageText" label="Time-Out Message Text:" data-config-key="TimeOutMessageText" />
+                        </div>
+                    </div>
+
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <h2 style="margin-top:0;">Global Rules for All Users</h2>
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableGlobalLimit" data-config-key="EnableGlobalLimit" /><span>Enable Global Watch Time Rules</span></label>
+                            <div class="fieldDescription">If enabled, these rules will apply to ALL users who are not in the exclusion list and do not have their own specific rules below.</div>
+                        </div>
+
+                        <div id="globalUserEditorContainer" class="hide" style="margin-top:1em; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5em;">
+                        </div>
+                    </div>
+
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <h3 style="margin-top:0;">Specific Rules for Individual Users</h3>
+                        <div class="fieldDescription">Use this section to add users who need different rules from the global settings, or to manage users when global rules are disabled.</div>
+                        <div id="limitedUsersContainer">
+                        </div>
+                        <button is="emby-button" type="button" class="raised button-submit" id="btnAddLimitedUser" style="margin-top: 1em;">
+                            <span>Add User</span>
+                        </button>
+                        <button is="emby-button" type="button" class="raised button-cancel" id="btnResetAll" style="margin-top: 1em;">
+                            <span>Reset All Users</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="libraryRestrictionsPage" class="hide">
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <h2 style="margin-top: 0;">Library Time Restrictions</h2>
+                        <div class="fieldDescription">Set specific time windows when playback from certain libraries is allowed. These rules apply to all users, unless a user is in an exclusion list.</div>
+                        <div id="libraryRestrictionsContainer" style="margin-top: 1.5em;">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="loggingPage" class="hide">
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <div class="page-header">
+                            <h2 style="margin:0;">Event Log</h2>
+                            <button is="emby-button" type="button" class="raised button-cancel" id="btnClearLog">
+                                <span>Clear Log</span>
+                            </button>
+                        </div>
+                        <div class="fieldDescription">Shows the last 200 events, such as when users hit their time limit or trigger a transcode.</div>
+                        <div id="logContainer" class="logging-list" style="margin-top:1.5em;">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="remoteAccessPage" class="hide">
+                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
+                        <h2 style="margin-top: 0;">External API Control</h2>
+                        <div class="checkboxContainer">
+                            <label><input is="emby-checkbox" type="checkbox" id="chkEnablePublicApi" data-config-key="EnablePublicApi" /><span>Enable Public API</span></label>
+                            <div class="fieldDescription">Allow control of the watch time limiter via external requests using the API key below.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtApiKey" label="API Key:" data-config-key="ApiKey" readonly />
+                        </div>
+                        <button is="emby-button" type="button" class="raised" id="btnGenerateApiKey">
+                            <span>Generate New Key</span>
+                        </button>
+                    </div>
+
+                    <div class="paper-card help-page" style="padding: 1.5em 2em; margin-top: 2em;">
+                        <h2 style="margin-top: 0;">External API Guide</h2>
+                        <p>The plugin exposes a public API to allow external scripts, dashboards, or applications to monitor and control user watch time. To use the API, you must first generate an API key on this page.</p>
+
+                        <h3>Authentication</h3>
+                        <p>All API requests require **two** forms of authentication:</p>
+                        <ul>
+                            <li><strong>Server Authentication:</strong> You must include a main API key from your Emby server's dashboard (under Dashboard -> API Keys). This authenticates you with the server itself. The recommended method is to send it as a URL parameter: <code>?api_key=YOUR_SERVER_KEY</code>.</li>
+                            <li><strong>Plugin Authorization:</strong> You must include the API key generated within this plugin. This authorizes your request specifically for the Watching Eye plugin. This key must be sent as an HTTP header: <code>X-WatchingEye-Api-Key</code>.</li>
+                        </ul>
+
+                        <h3>API Endpoints</h3>
+                        <p>All endpoints are relative to your server's base URL (e.g., <code>http://your-server:8096</code>).</p>
+
+                        <hr style="margin: 2em 0;">
+
+                        <h3>GET /WatchingEye/Public/Status</h3>
+                        <p>Gets the current watch time status for all users who are configured in the Watch Time Limiter.</p>
+                        <p><strong>Example Response:</strong></p>
+                        <pre>[
+    {
+        "UserId": "a1b2c3d4...",
+        "Username": "TestUser",
+        "DailyLimitMinutes": 120,
+        "WeeklyLimitHours": 20,
+        "MonthlyLimitHours": 80,
+        "YearlyLimitHours": 0,
+        "SecondsWatchedDaily": 3720.5,
+        "SecondsWatchedWeekly": 14882.1,
+        "SecondsWatchedMonthly": 59528.4,
+        "SecondsWatchedYearly": 59528.4,
+        "TimeOutUntil": "0001-01-01T00:00:00Z"
+    }
+]</pre>
+
+                        <hr style="margin: 2em 0;">
+
+                        <h3>POST /WatchingEye/Public/ExtendTime</h3>
+                        <p>Adds a specified number of minutes to a user's allowed watch time for all active limit periods (daily, weekly, etc.). This is useful for providing "time credits".</p>
+                        <p><strong>Request Body:</strong></p>
+                        <pre>{
+    "UserId": "YOUR_USER_ID_HERE",
+    "Minutes": 60
+}</pre>
+
+                        <hr style="margin: 2em 0;">
+
+                        <h3>POST /WatchingEye/Public/TimeOutUser</h3>
+                        <p>Temporarily blocks a user from playback for a specified number of minutes. This will immediately stop any active playback for the user.</p>
+                        <p><strong>Request Body:</strong></p>
+                        <pre>{
+    "UserId": "YOUR_USER_ID_HERE",
+    "Minutes": 15
+}</pre>
+
+                        <hr style="margin: 2em 0;">
+
+                        <h3>POST /WatchingEye/Public/ClearTimeOut</h3>
+                        <p>Removes an active time-out for a user, allowing them to resume playback immediately (if they are not over their regular time limit).</p>
+                        <p><strong>Request Body:</strong></p>
+                        <pre>{
+    "UserId": "YOUR_USER_ID_HERE"
+}</pre>
+
+                        <hr style="margin: 2em 0;">
+
+                        <h3>POST /WatchingEye/Public/ResetUserTime</h3>
+                        <p>Resets all watch time counters for a single specified user to zero.</p>
+                        <p><strong>Request Body:</strong></p>
+                        <pre>{
+    "UserId": "YOUR_USER_ID_HERE"
+}</pre>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2em;">
+                    <button is="emby-button" type="submit" class="raised button-submit block">
+                        <span>Save</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

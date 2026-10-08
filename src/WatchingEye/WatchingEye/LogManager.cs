@@ -54,17 +54,6 @@ public static class LogManager
 		});
 	}
 
-	public static void LogTranscode(SessionInfo session, string reasons)
-	{
-		AddEntry(new LogEntry
-		{
-			EventType = "Transcode",
-			Username = (session.UserName ?? "Unknown"),
-			Message = "Transcode started: " + reasons,
-			ClientName = (session.Client ?? "Unknown"),
-			Timestamp = DateTime.UtcNow
-		});
-	}
 
 	public static List<LogEntry> GetLogEntries()
 	{

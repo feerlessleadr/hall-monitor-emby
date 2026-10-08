@@ -15,7 +15,7 @@ using MediaBrowser.Model.Session;
 
 namespace WatchingEye;
 
-public static class TranscodeMonitor
+public static class PlaybackMonitor
 {
 	private static ISessionManager? _sessionManager;
 
@@ -37,9 +37,7 @@ public static class TranscodeMonitor
 
 	private static readonly object _cacheLock = new object();
 
-	private static readonly ConcurrentDictionary<string, int> _transcodeNotificationsSent = new ConcurrentDictionary<string, int>();
 
-	private static readonly ConcurrentDictionary<string, int> _directPlayNotificationsSent = new ConcurrentDictionary<string, int>();
 
 	private static readonly ConcurrentDictionary<string, int> _playbackStartNotificationsSent = new ConcurrentDictionary<string, int>();
 
@@ -49,7 +47,6 @@ public static class TranscodeMonitor
 
 	private static readonly ConcurrentDictionary<string, DateTime> _sessionPauseStartTime = new ConcurrentDictionary<string, DateTime>();
 
-	private static readonly ConcurrentDictionary<string, bool> _activeTranscodeSessions = new ConcurrentDictionary<string, bool>();
 
 	public static void Start(ISessionManager sessionManager, ILogger logger, ILibraryManager libraryManager)
 	{
@@ -60,8 +57,6 @@ public static class TranscodeMonitor
 			_libraryManager = libraryManager;
 			_sessionManager.PlaybackStart += OnPlaybackStart;
 			_sessionManager.PlaybackStopped += OnPlaybackStopped;
-			_transcodeNotificationsSent.Clear();
-			_directPlayNotificationsSent.Clear();
 			_playbackStartNotificationsSent.Clear();
 			_sessionPauseStartTime.Clear();
 			_sessionCheckTimer = new Timer(OnSessionCheckTimerElapsed, null, TimeSpan.FromSeconds(30.0), TimeSpan.FromSeconds(30.0));
@@ -76,11 +71,8 @@ public static class TranscodeMonitor
 			_sessionCheckTimer?.Dispose();
 			_sessionManager.PlaybackStart -= OnPlaybackStart;
 			_sessionManager.PlaybackStopped -= OnPlaybackStopped;
-			_transcodeNotificationsSent.Clear();
-			_directPlayNotificationsSent.Clear();
 			_playbackStartNotificationsSent.Clear();
 			_sessionPauseStartTime.Clear();
-			_activeTranscodeSessions.Clear();
 			_isRunning = false;
 		}
 	}
@@ -118,7 +110,7 @@ public static class TranscodeMonitor
 					TimeSpan pausedDuration = now - pauseStartTime;
 					if (pausedDuration >= timeout)
 					{
-						_logger.Info($"[TranscodeMonitor] Stopping session for user '{session.UserName}' on client '{session.Client}' due to exceeding pause limit of {config.PausedStreamTimeoutMinutes} minutes.", Array.Empty<object>());
+						_logger.Info($"[PlaybackMonitor] Stopping session for user '{session.UserName}' on client '{session.Client}' due to exceeding pause limit of {config.PausedStreamTimeoutMinutes} minutes.", Array.Empty<object>());
 						if (_sessionPauseStartTime.TryRemove(session.Id, out value))
 						{
 							await InAppNotificationService.SendNotificationAsync(session.Id, "Playback Stopped", config.PausedStreamTimeoutMessage, config.EnableConfirmationButtonOnPausedStreamTimeout).ConfigureAwait(continueOnCapturedContext: false);
@@ -149,7 +141,7 @@ public static class TranscodeMonitor
 			ILogger? logger = _logger;
 			if (logger != null)
 			{
-				logger.ErrorException("[TranscodeMonitor] Error during session check timer.", ex, Array.Empty<object>());
+				logger.ErrorException("[PlaybackMonitor] Error during session check timer.", ex, Array.Empty<object>());
 			}
 		}
 	}
@@ -173,7 +165,7 @@ public static class TranscodeMonitor
 		{
 			if (config.ConfigurationVersion != _cachedConfigVersion)
 			{
-				_logger.Info("[TranscodeMonitor] Configuration has changed, rebuilding excluded library path cache.", Array.Empty<object>());
+				_logger.Info("[PlaybackMonitor] Configuration has changed, rebuilding excluded library path cache.", Array.Empty<object>());
 				List<string> list = new List<string>();
 				HashSet<string> hashSet = new HashSet<string>(config.ExcludedLibraryIds);
 				if (hashSet.Any())
@@ -212,18 +204,8 @@ public static class TranscodeMonitor
 		}
 		string sessionId = session.Id;
 		_sessionPauseStartTime.TryRemove(sessionId, out var _);
-		_activeTranscodeSessions.TryRemove(sessionId, out var value2);
-		List<string> list = _transcodeNotificationsSent.Keys.Where((string k) => k.StartsWith(sessionId + "_")).ToList();
 		int value3;
-		foreach (string item in list)
-		{
-			_transcodeNotificationsSent.TryRemove(item, out value3);
-		}
-		List<string> directPlayKeys = _directPlayNotificationsSent.Keys.Where((string k) => k.StartsWith(sessionId + "_")).ToList();
-		foreach (string directPlayKey in directPlayKeys)
-		{
-			_directPlayNotificationsSent.TryRemove(directPlayKey, out value3);
-		}
+		bool value2;
 		List<string> playbackStartKeys = _playbackStartNotificationsSent.Keys.Where((string k) => k.StartsWith(sessionId + "_")).ToList();
 		foreach (string playbackStartKey in playbackStartKeys)
 		{
@@ -308,7 +290,7 @@ public static class TranscodeMonitor
 							ILogger? logger = _logger;
 							if (logger != null)
 							{
-								logger.Info($"[TranscodeMonitor] Blocking playback for user '{session.UserName}' from library '{restriction.LibraryName}' due to time restriction.", Array.Empty<object>());
+								logger.Info($"[PlaybackMonitor] Blocking playback for user '{session.UserName}' from library '{restriction.LibraryName}' due to time restriction.", Array.Empty<object>());
 							}
 							if (_sessionManager != null)
 							{
@@ -331,7 +313,7 @@ public static class TranscodeMonitor
 					ILogger? logger2 = _logger;
 					if (logger2 != null)
 					{
-						logger2.Info($"[TranscodeMonitor] Blocking playback for user '{session.UserName}' on client '{session.Client}' - {blockReason}.", Array.Empty<object>());
+						logger2.Info($"[PlaybackMonitor] Blocking playback for user '{session.UserName}' on client '{session.Client}' - {blockReason}.", Array.Empty<object>());
 					}
 					_sessionsBeingBlocked.TryAdd(session.Id, value: true);
 					if (_sessionManager != null)
@@ -350,7 +332,6 @@ public static class TranscodeMonitor
 				try
 				{
 					await HandlePlaybackStartNotification(session, config);
-					await HandleMediaStatusNotification(session, config);
 				}
 				catch (Exception ex3)
 				{
@@ -380,188 +361,6 @@ public static class TranscodeMonitor
 		{
 			await SendNotificationLoopAsync(session, "Playback Started", config.PlaybackStartMessageText, config.PlaybackStartInitialDelaySeconds, config.PlaybackStartMaxNotifications, config.PlaybackStartDelayBetweenMessagesSeconds, config.EnableConfirmationButtonOnPlaybackStart, _playbackStartNotificationsSent);
 		}
-	}
-
-	private static async Task HandleMediaStatusNotification(SessionInfo session, PluginConfiguration config)
-	{
-		if (session.TranscodingInfo == null)
-		{
-			if (config.NotifyOnDirectPlay && !string.IsNullOrWhiteSpace(config.DirectPlayMessageText))
-			{
-				await SendNotificationLoopAsync(session, "Direct Play", config.DirectPlayMessageText, config.InitialDelaySeconds, 1, 0, config.EnableConfirmationButtonOnDirectPlay, _directPlayNotificationsSent);
-			}
-			return;
-		}
-		if (config.InitialDelaySeconds > 0)
-		{
-			await Task.Delay(config.InitialDelaySeconds * 1000).ConfigureAwait(continueOnCapturedContext: false);
-		}
-		ISessionManager? sessionManager = _sessionManager;
-		SessionInfo currentSession = ((sessionManager != null) ? sessionManager.Sessions.FirstOrDefault((SessionInfo s) => s.Id == session.Id) : null);
-		if (((currentSession != null) ? currentSession.TranscodingInfo : null) == null)
-		{
-			return;
-		}
-		if (config.EnableConcurrentTranscodeLimit && config.MaxConcurrentTranscodes > 0)
-		{
-			_activeTranscodeSessions.TryAdd(currentSession.Id, value: true);
-			int currentTranscodeCount = _activeTranscodeSessions.Count - 1;
-			ILogger? logger = _logger;
-			if (logger != null)
-			{
-				logger.Info($"[TranscodeMonitor] Concurrent transcode check: current count = {currentTranscodeCount}, limit = {config.MaxConcurrentTranscodes}, session = {currentSession.Id}", Array.Empty<object>());
-			}
-			if (currentTranscodeCount >= config.MaxConcurrentTranscodes)
-			{
-				ILogger? logger2 = _logger;
-				if (logger2 != null)
-				{
-					logger2.Info($"[TranscodeMonitor] Blocking transcode for user '{currentSession.UserName}' on client '{currentSession.Client}'. Server has reached the maximum concurrent transcode limit of {config.MaxConcurrentTranscodes}.", Array.Empty<object>());
-				}
-				_activeTranscodeSessions.TryRemove(currentSession.Id, out var _);
-				string text = config.MessageTextConcurrentTranscodeLimit;
-				if (string.IsNullOrWhiteSpace(text))
-				{
-					text = "The server has reached its maximum concurrent transcode limit. Please try again later.";
-				}
-				if (_sessionManager != null)
-				{
-					_sessionsBeingBlocked.TryAdd(currentSession.Id, value: true);
-					await InAppNotificationService.SendNotificationAsync(currentSession.Id, "Playback Blocked", text, config.EnableConfirmationButtonOnTranscodeBlock).ConfigureAwait(continueOnCapturedContext: false);
-					await _sessionManager.SendPlaystateCommand((string)null, currentSession.Id, new PlaystateRequest
-					{
-						Command = (PlaystateCommand)0
-					}, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
-				}
-				return;
-			}
-		}
-		int actualHeight = 0;
-		BaseItemDto nowPlayingItem = currentSession.NowPlayingItem;
-		if (((nowPlayingItem != null) ? nowPlayingItem.MediaStreams : null) != null)
-		{
-			MediaStream videoStream = currentSession.NowPlayingItem.MediaStreams.FirstOrDefault((MediaStream s) =>
-			{
-				return (int)s.Type == 2;
-			});
-			if (videoStream != null)
-			{
-				actualHeight = videoStream.Height.GetValueOrDefault();
-			}
-		}
-		if (actualHeight == 0)
-		{
-			BaseItemDto nowPlayingItem2 = currentSession.NowPlayingItem;
-			actualHeight = ((nowPlayingItem2 != null) ? nowPlayingItem2.Height : ((int?)null)).GetValueOrDefault();
-		}
-		if (config.EnableResolutionBlocking && actualHeight > config.MaxTranscodingResolution)
-		{
-			ILogger? logger3 = _logger;
-			if (logger3 != null)
-			{
-				logger3.Info($"[TranscodeMonitor] Blocking transcode for user '{currentSession.UserName}' on client '{currentSession.Client}'. Resolution '{actualHeight}p' is over the limit of '{config.MaxTranscodingResolution}p'.", Array.Empty<object>());
-			}
-			string text2 = config.MessageTextResolutionBlocked;
-			if (string.IsNullOrWhiteSpace(text2))
-			{
-				text2 = $"Transcoding video with a resolution of {actualHeight}p is not permitted. The maximum allowed resolution is {config.MaxTranscodingResolution}p.";
-			}
-			text2 = text2.Replace("{height}", actualHeight.ToString()).Replace("{max}", config.MaxTranscodingResolution.ToString());
-			if (_sessionManager != null)
-			{
-				_sessionsBeingBlocked.TryAdd(currentSession.Id, value: true);
-				await InAppNotificationService.SendNotificationAsync(currentSession.Id, "Playback Blocked", text2, config.EnableConfirmationButtonOnResolutionBlock).ConfigureAwait(continueOnCapturedContext: false);
-				await _sessionManager.SendPlaystateCommand((string)null, currentSession.Id, new PlaystateRequest
-				{
-					Command = (PlaystateCommand)0
-				}, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
-			}
-			return;
-		}
-		if (config.EnableTranscodeBlocking && !string.IsNullOrWhiteSpace(config.BlockedTranscodeFormats))
-		{
-			HashSet<string> blockedFormats = new HashSet<string>(from f in config.BlockedTranscodeFormats.Split(',')
-				select f.Trim(), StringComparer.OrdinalIgnoreCase);
-			BaseItemDto nowPlayingItem3 = currentSession.NowPlayingItem;
-			string sourceContainer = ((nowPlayingItem3 != null) ? nowPlayingItem3.Container : null);
-			if (!string.IsNullOrEmpty(sourceContainer) && blockedFormats.Contains(sourceContainer))
-			{
-				TranscodingInfo blockTranscodeInfo = currentSession.TranscodingInfo;
-				bool isVideoTranscoding = blockTranscodeInfo != null && !blockTranscodeInfo.IsVideoDirect;
-				bool isAudioTranscoding = blockTranscodeInfo != null && !blockTranscodeInfo.IsAudioDirect;
-				bool shouldBlock = false;
-				List<string> blockReasonParts = new List<string>();
-				if (isVideoTranscoding && config.StopVideoTranscoding)
-				{
-					shouldBlock = true;
-					blockReasonParts.Add("video transcoding");
-				}
-				if (isAudioTranscoding && config.StopAudioTranscoding)
-				{
-					shouldBlock = true;
-					blockReasonParts.Add("audio transcoding");
-				}
-				if (shouldBlock)
-				{
-					string blockReasonText = string.Join(" and ", blockReasonParts);
-					ILogger? logger4 = _logger;
-					if (logger4 != null)
-					{
-						logger4.Info($"[TranscodeMonitor] Blocking transcode for user '{currentSession.UserName}' on client '{currentSession.Client}'. Source format '{sourceContainer}' is on the blocklist ({blockReasonText}).", Array.Empty<object>());
-					}
-					string text3 = "Transcoding from the '" + sourceContainer.ToUpper() + "' container is not permitted by the server administrator.";
-					if (_sessionManager != null)
-					{
-						_sessionsBeingBlocked.TryAdd(currentSession.Id, value: true);
-						await InAppNotificationService.SendNotificationAsync(currentSession.Id, "Playback Blocked", text3, config.EnableConfirmationButtonOnTranscodeBlock).ConfigureAwait(continueOnCapturedContext: false);
-						await _sessionManager.SendPlaystateCommand((string)null, currentSession.Id, new PlaystateRequest
-						{
-							Command = (PlaystateCommand)0
-						}, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
-					}
-					return;
-				}
-			}
-		}
-		if (!config.EnableTranscodeWarning)
-		{
-			return;
-		}
-		TranscodingInfo transcodeInfo = currentSession.TranscodingInfo;
-		if (transcodeInfo.IsVideoDirect && transcodeInfo.IsAudioDirect)
-		{
-			if (!config.NotifyOnContainerChange)
-			{
-				ILogger? logger5 = _logger;
-				if (logger5 != null)
-				{
-					logger5.Info("[TranscodeMonitor] Suppressing notification for container remux as per configuration.", Array.Empty<object>());
-				}
-				return;
-			}
-		}
-		else if (transcodeInfo.IsVideoDirect && !transcodeInfo.IsAudioDirect && !config.NotifyOnAudioOnlyTranscode)
-		{
-			ILogger? logger6 = _logger;
-			if (logger6 != null)
-			{
-				logger6.Info("[TranscodeMonitor] Suppressing notification for audio-only transcode as per configuration.", Array.Empty<object>());
-			}
-			return;
-		}
-		string rawTranscodeReasons = string.Join(", ", currentSession.TranscodingInfo.TranscodeReasons);
-		string friendlyReasons = TranscodeReasonParser.Parse(rawTranscodeReasons);
-		string messageText;
-		if ((rawTranscodeReasons.Contains("BitrateTooHighInMatrix") || rawTranscodeReasons.Contains("ContainerBitrateExceedsLimit")) && !string.IsNullOrWhiteSpace(config.MessageTextBandwidthLimitation))
-		{
-			messageText = config.MessageTextBandwidthLimitation.Replace("{reason}", friendlyReasons);
-		}
-		else
-		{
-			messageText = (string.IsNullOrWhiteSpace(config.MessageTextClientLimitation) ? config.MessageText.Replace("{reason}", friendlyReasons) : config.MessageTextClientLimitation.Replace("{reason}", friendlyReasons));
-		}
-		LogManager.LogTranscode(currentSession, friendlyReasons);
-		await SendNotificationLoopAsync(currentSession, "Transcode Warning", messageText, 0, config.MaxNotifications, config.DelayBetweenMessagesSeconds, config.EnableConfirmationButtonOnTranscodeWarning, _transcodeNotificationsSent);
 	}
 
 	private static async Task SendNotificationLoopAsync(SessionInfo session, string header, string text, int initialDelay, int maxNotifications, int delayBetween, bool useConfirmationButton, ConcurrentDictionary<string, int> sentCounts)

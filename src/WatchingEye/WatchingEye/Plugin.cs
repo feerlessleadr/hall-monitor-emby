@@ -81,7 +81,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 	public void Run()
 	{
 		InAppNotificationService.Start(_logger, _sessionManager);
-		TranscodeMonitor.Start(_sessionManager, _logger, _libraryManager);
+		PlaybackMonitor.Start(_sessionManager, _logger, _libraryManager);
 		WatchTimeManager.Start(_sessionManager, _logger, _appPaths, _jsonSerializer);
 		LogManager.Start(_logger, _jsonSerializer, _appPaths);
 		ServerNotificationService.Start(_logger, _notificationManager);
@@ -89,7 +89,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 
 	public void Dispose()
 	{
-		TranscodeMonitor.Stop();
+		PlaybackMonitor.Stop();
 		WatchTimeManager.Stop();
 		LogManager.Stop();
 		ServerNotificationService.Stop();

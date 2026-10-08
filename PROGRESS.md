@@ -55,3 +55,11 @@ Added `[Authenticated(Roles = "Admin")]` to the 13 non-public request classes in
 
 ### Test hygiene
 Probe users deleted, plugin config restored to defaults, plugin log and orphan watch-time data cleared, generated 288 MB test clip removed from `C:\claude\Movies` and library refreshed, helper websocket process stopped. Plugin and server left running.
+
+## Behavior change: transcode features removed (requested by user)
+Removed: transcode warnings, transcode blocking (by source format, by resolution, concurrent-transcode limit), direct-play notification, `TranscodeReasonParser`, `LogManager.LogTranscode` and the "Transcode" log event, their 24 `PluginConfiguration` properties, their config-page cards, and the "transcode" wording in the plugin/assembly descriptions.
+`TranscodeMonitor` -> renamed `PlaybackMonitor` (internal static class, not serialized); it still owns watch-time-related and generic playback logic: limiter block at playback start, library time restrictions, paused-stream timeout, playback-start message, and the user/client/library exclusions. Log tag is now `[PlaybackMonitor]`.
+Kept deliberately (not transcode-specific; say the word to remove): playback-start notification, paused-stream timeout, "Excluded users/clients/libraries" and the confirmation-button option.
+Compatibility: existing `WatchingEye.xml` with the old elements loads fine (unknown elements ignored) and the next save drops them. Plugin GUID, name, version, routes and kept config property names unchanged. The earlier "TranscodingInfo timing" fragility no longer applies.
+Verified on Emby 4.10.1.0 (new build): loads; config page shows no transcode UI and saves; limiter enforcement (Stop + message, `LimitReached` event); block when starting playback while over the limit; library time restriction blocks on a disallowed day (and not when allowed); Event Log renders. Test hygiene done (probe user/data/config reset).
+Gotcha: Emby Web caches the plugin page HTML in the page session; after updating the plugin, load the dashboard in a fresh page load (or hard refresh) to see the new UI.

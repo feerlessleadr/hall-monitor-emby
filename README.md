@@ -1,6 +1,6 @@
 # Watching Eye (recovered source)
 
-Emby Server plugin that monitors and limits per-user watch time and warns about / blocks transcoding.
+Emby Server plugin that monitors and limits per-user watch time. (Transcode warnings/blocking from the original plugin were removed in this fork.)
 
 > **Recovered via decompilation.** The original author deleted the GitHub repository. This source was
 > reconstructed from `WatchingEye.dll` **v1.6.8.0** (`original/WatchingEye.dll`, SHA-256

@@ -25,8 +25,6 @@ public static class PlaybackMonitor
 
 	private static bool _isRunning;
 
-	private static Timer? _sessionCheckTimer;
-
 	private static List<string>? _excludedLibraryPathsCache;
 
 	private static string _cachedConfigVersion = string.Empty;
@@ -37,17 +35,6 @@ public static class PlaybackMonitor
 
 	private static readonly object _cacheLock = new object();
 
-
-
-	private static readonly ConcurrentDictionary<string, int> _playbackStartNotificationsSent = new ConcurrentDictionary<string, int>();
-
-	private static readonly ConcurrentDictionary<string, bool> _notificationLoopActive = new ConcurrentDictionary<string, bool>();
-
-	private static readonly ConcurrentDictionary<string, bool> _sessionsBeingBlocked = new ConcurrentDictionary<string, bool>();
-
-	private static readonly ConcurrentDictionary<string, DateTime> _sessionPauseStartTime = new ConcurrentDictionary<string, DateTime>();
-
-
 	public static void Start(ISessionManager sessionManager, ILogger logger, ILibraryManager libraryManager)
 	{
 		if (!_isRunning)
@@ -56,10 +43,6 @@ public static class PlaybackMonitor
 			_logger = logger;
 			_libraryManager = libraryManager;
 			_sessionManager.PlaybackStart += OnPlaybackStart;
-			_sessionManager.PlaybackStopped += OnPlaybackStopped;
-			_playbackStartNotificationsSent.Clear();
-			_sessionPauseStartTime.Clear();
-			_sessionCheckTimer = new Timer(OnSessionCheckTimerElapsed, null, TimeSpan.FromSeconds(30.0), TimeSpan.FromSeconds(30.0));
 			_isRunning = true;
 		}
 	}
@@ -68,81 +51,8 @@ public static class PlaybackMonitor
 	{
 		if (_isRunning && _sessionManager != null)
 		{
-			_sessionCheckTimer?.Dispose();
 			_sessionManager.PlaybackStart -= OnPlaybackStart;
-			_sessionManager.PlaybackStopped -= OnPlaybackStopped;
-			_playbackStartNotificationsSent.Clear();
-			_sessionPauseStartTime.Clear();
 			_isRunning = false;
-		}
-	}
-
-	private static async void OnSessionCheckTimerElapsed(object? state)
-	{
-		PluginConfiguration config = ((BasePlugin<PluginConfiguration>)(object)Plugin.Instance)?.Configuration;
-		if (config == null || _sessionManager == null || _logger == null || _libraryManager == null)
-		{
-			return;
-		}
-		if (!config.EnablePausedStreamTimeout || config.PausedStreamTimeoutMinutes <= 0)
-		{
-			if (!_sessionPauseStartTime.IsEmpty)
-			{
-				_sessionPauseStartTime.Clear();
-			}
-			return;
-		}
-		try
-		{
-			List<SessionInfo> sessions = _sessionManager.Sessions.ToList();
-			DateTime now = DateTime.UtcNow;
-			TimeSpan timeout = TimeSpan.FromMinutes(config.PausedStreamTimeoutMinutes);
-			DateTime value;
-			foreach (SessionInfo session in sessions)
-			{
-				if (IsSessionExcluded(session, config))
-				{
-					_sessionPauseStartTime.TryRemove(session.Id, out value);
-				}
-				else if (session.PlayState.IsPaused)
-				{
-					DateTime pauseStartTime = _sessionPauseStartTime.GetOrAdd(session.Id, now);
-					TimeSpan pausedDuration = now - pauseStartTime;
-					if (pausedDuration >= timeout)
-					{
-						_logger.Info($"[PlaybackMonitor] Stopping session for user '{session.UserName}' on client '{session.Client}' due to exceeding pause limit of {config.PausedStreamTimeoutMinutes} minutes.", Array.Empty<object>());
-						if (_sessionPauseStartTime.TryRemove(session.Id, out value))
-						{
-							await InAppNotificationService.SendNotificationAsync(session.Id, "Playback Stopped", config.PausedStreamTimeoutMessage, config.EnableConfirmationButtonOnPausedStreamTimeout).ConfigureAwait(continueOnCapturedContext: false);
-							await _sessionManager.SendPlaystateCommand((string)null, session.Id, new PlaystateRequest
-							{
-								Command = (PlaystateCommand)0
-							}, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
-						}
-					}
-				}
-				else
-				{
-					_sessionPauseStartTime.TryRemove(session.Id, out value);
-				}
-			}
-			HashSet<string> currentSessionIds = new HashSet<string>(sessions.Select((SessionInfo s) => s.Id));
-			List<string> pausedSessionIds = _sessionPauseStartTime.Keys.ToList();
-			foreach (string pausedId in pausedSessionIds)
-			{
-				if (!currentSessionIds.Contains(pausedId))
-				{
-					_sessionPauseStartTime.TryRemove(pausedId, out value);
-				}
-			}
-		}
-		catch (Exception ex)
-		{
-			ILogger? logger = _logger;
-			if (logger != null)
-			{
-				logger.ErrorException("[PlaybackMonitor] Error during session check timer.", ex, Array.Empty<object>());
-			}
 		}
 	}
 
@@ -193,30 +103,6 @@ public static class PlaybackMonitor
 			}
 		}
 		return false;
-	}
-
-	private static void OnPlaybackStopped(object? sender, PlaybackStopEventArgs e)
-	{
-		SessionInfo session = ((PlaybackProgressEventArgs)e).Session;
-		if (session == null)
-		{
-			return;
-		}
-		string sessionId = session.Id;
-		_sessionPauseStartTime.TryRemove(sessionId, out var _);
-		int value3;
-		bool value2;
-		List<string> playbackStartKeys = _playbackStartNotificationsSent.Keys.Where((string k) => k.StartsWith(sessionId + "_")).ToList();
-		foreach (string playbackStartKey in playbackStartKeys)
-		{
-			_playbackStartNotificationsSent.TryRemove(playbackStartKey, out value3);
-		}
-		List<string> loopKeys = _notificationLoopActive.Keys.Where((string k) => k.StartsWith(sessionId + "_")).ToList();
-		foreach (string loopKey in loopKeys)
-		{
-			_notificationLoopActive.TryRemove(loopKey, out value2);
-		}
-		_sessionsBeingBlocked.TryRemove(sessionId, out value2);
 	}
 
 	private static bool IsOutsideLibraryTimeWindow(LibraryTimeRestriction restriction, DateTime now)
@@ -315,7 +201,6 @@ public static class PlaybackMonitor
 					{
 						logger2.Info($"[PlaybackMonitor] Blocking playback for user '{session.UserName}' on client '{session.Client}' - {blockReason}.", Array.Empty<object>());
 					}
-					_sessionsBeingBlocked.TryAdd(session.Id, value: true);
 					if (_sessionManager != null)
 					{
 						await _sessionManager.SendPlaystateCommand((string)null, session.Id, new PlaystateRequest
@@ -327,22 +212,6 @@ public static class PlaybackMonitor
 					return;
 				}
 			}
-			Task.Run(async () =>
-			{
-				try
-				{
-					await HandlePlaybackStartNotification(session, config);
-				}
-				catch (Exception ex3)
-				{
-					Exception taskEx = ex3;
-					ILogger? logger4 = _logger;
-					if (logger4 != null)
-					{
-						logger4.ErrorException("Error within playback handling task.", taskEx, Array.Empty<object>());
-					}
-				}
-			});
 		}
 		catch (Exception ex)
 		{
@@ -355,60 +224,4 @@ public static class PlaybackMonitor
 		}
 	}
 
-	private static async Task HandlePlaybackStartNotification(SessionInfo session, PluginConfiguration config)
-	{
-		if (config.EnablePlaybackStartNotification && !string.IsNullOrWhiteSpace(config.PlaybackStartMessageText))
-		{
-			await SendNotificationLoopAsync(session, "Playback Started", config.PlaybackStartMessageText, config.PlaybackStartInitialDelaySeconds, config.PlaybackStartMaxNotifications, config.PlaybackStartDelayBetweenMessagesSeconds, config.EnableConfirmationButtonOnPlaybackStart, _playbackStartNotificationsSent);
-		}
-	}
-
-	private static async Task SendNotificationLoopAsync(SessionInfo session, string header, string text, int initialDelay, int maxNotifications, int delayBetween, bool useConfirmationButton, ConcurrentDictionary<string, int> sentCounts)
-	{
-		if (useConfirmationButton)
-		{
-			maxNotifications = 1;
-		}
-		if (_sessionManager == null || session.NowPlayingItem == null)
-		{
-			return;
-		}
-		string notificationKey = session.Id + "_" + session.NowPlayingItem.Id;
-		string loopKey = notificationKey + "_" + header;
-		if (!_notificationLoopActive.TryAdd(loopKey, value: true))
-		{
-			return;
-		}
-		try
-		{
-			int sentCount = sentCounts.GetOrAdd(notificationKey, 0);
-			if (sentCount >= maxNotifications)
-			{
-				return;
-			}
-			if (sentCount == 0 && initialDelay > 0)
-			{
-				await Task.Delay(initialDelay * 1000).ConfigureAwait(continueOnCapturedContext: false);
-			}
-			while (sentCount < maxNotifications)
-			{
-				SessionInfo currentSession = _sessionManager.Sessions.FirstOrDefault((SessionInfo s) => s.Id == session.Id);
-				if (currentSession == null || currentSession.PlayState.IsPaused)
-				{
-					break;
-				}
-				await InAppNotificationService.SendNotificationAsync(session.Id, header, text, useConfirmationButton).ConfigureAwait(continueOnCapturedContext: false);
-				sentCount = sentCounts.AddOrUpdate(notificationKey, 1, (string _, int count) => count + 1);
-				if (sentCount >= maxNotifications || delayBetween <= 0)
-				{
-					break;
-				}
-				await Task.Delay(delayBetween * 1000).ConfigureAwait(continueOnCapturedContext: false);
-			}
-		}
-		finally
-		{
-			_notificationLoopActive.TryRemove(loopKey, out var _);
-		}
-	}
 }

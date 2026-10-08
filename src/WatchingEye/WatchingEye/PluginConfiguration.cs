@@ -8,27 +8,7 @@ public class PluginConfiguration : BasePluginConfiguration
 {
 	public string ConfigurationVersion { get; set; } = Guid.NewGuid().ToString();
 
-	public bool EnablePlaybackStartNotification { get; set; } = false;
-
-	public string PlaybackStartMessageText { get; set; } = "Enjoy the show!";
-
-	public int PlaybackStartInitialDelaySeconds { get; set; } = 1;
-
-	public int PlaybackStartMaxNotifications { get; set; } = 1;
-
-	public int PlaybackStartDelayBetweenMessagesSeconds { get; set; } = 5;
-
-	public bool EnablePausedStreamTimeout { get; set; } = false;
-
-	public int PausedStreamTimeoutMinutes { get; set; } = 30;
-
-	public string PausedStreamTimeoutMessage { get; set; } = "Playback has been stopped because the stream was paused for too long.";
-
-	public bool EnableConfirmationButtonOnPlaybackStart { get; set; } = false;
-
 	public bool EnableConfirmationButtonOnWatchTimeLimit { get; set; } = false;
-
-	public bool EnableConfirmationButtonOnPausedStreamTimeout { get; set; } = false;
 
 	public List<string> ExcludedUserIds { get; set; } = new List<string>();
 

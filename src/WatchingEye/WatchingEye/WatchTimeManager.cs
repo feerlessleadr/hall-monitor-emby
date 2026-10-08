@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -594,7 +595,14 @@ public static class WatchTimeManager
 		case PlaybackBlockReason.TimedOut:
 		{
 			string timeOutMessageText = config.TimeOutMessageText;
-			timeOutMessageText = ((!_userWatchData.TryGetValue(userId, out UserWatchData value)) ? timeOutMessageText.Replace(" for the next {duration}", string.Empty) : timeOutMessageText.Replace("{duration}", FormatTimeSpan(value.TimeOutUntil - DateTime.UtcNow)));
+			if (_userWatchData.TryGetValue(userId, out UserWatchData value))
+			{
+				timeOutMessageText = timeOutMessageText.Replace("{end_time}", FormatLocalDateTime(value.TimeOutUntil)).Replace("{duration}", FormatTimeSpan(value.TimeOutUntil - DateTime.UtcNow));
+			}
+			else
+			{
+				timeOutMessageText = timeOutMessageText.Replace(" until {end_time}", string.Empty).Replace(" for the next {duration}", string.Empty);
+			}
 			return (header: "Playback Disabled", message: timeOutMessageText);
 		}
 		default:
@@ -883,6 +891,12 @@ public static class WatchTimeManager
 	private static string FormatTimeFromDouble(double hour)
 	{
 		return DateTime.Today.Add(TimeSpan.FromHours(hour)).ToString("t");
+	}
+
+	private static string FormatLocalDateTime(DateTime utcTime)
+	{
+		DateTime dateTime = DateTime.SpecifyKind(utcTime, DateTimeKind.Utc).ToLocalTime();
+		return dateTime.ToString("dddd, MMMM d, yyyy 'at' h:mm tt", CultureInfo.CurrentCulture);
 	}
 
 	private static string FormatTimeSpan(TimeSpan timeSpan)

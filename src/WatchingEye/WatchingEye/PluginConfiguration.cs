@@ -26,7 +26,7 @@ public class PluginConfiguration : BasePluginConfiguration
 
 	public string TimeWindowBlockedMessageText { get; set; } = "Playback is not allowed at this time. Please try again during your allowed watch window.";
 
-	public string TimeOutMessageText { get; set; } = "You have been placed in a temporary time-out. Playback is disabled for the next {duration}.";
+	public string TimeOutMessageText { get; set; } = "You have been placed in a temporary time-out. Playback is disabled until {end_time}.";
 
 	public string ApiKey { get; set; } = "";
 

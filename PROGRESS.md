@@ -41,3 +41,17 @@ Rebuilt Release DLL copied to the test server's `programdata/plugins`. Results:
 
 ## Fix applied: admin-only routes (approved by user)
 Added `[Authenticated(Roles = "Admin")]` to the 13 non-public request classes in `WatchingEye.Services`. Re-tested on Emby 4.10.1.0 with a fresh non-admin user: all 13 routes -> 403; admin (API key) -> 200/204. `Public/*` routes unchanged (API-key auth). Note: `Public/Status` called with a non-matching/absent key as a logged-in user returns 500 (it throws UnauthorizedAccessException, which Emby maps to 500); this is pre-existing behavior, not changed.
+
+## Remaining tests completed (Emby 4.10.1.0, build with admin-route fix)
+- PASS save from config page: toggled a setting in the dashboard UI, "Settings saved." toast, value persisted in `WatchingEye.xml` and via the plugin Configuration API.
+- PASS message + stop delivery over a real websocket client: 50% threshold warning (`DisplayMessage`) at 30 s, then at the 60 s limit `Playstate: Stop` + "Time Limit Reached" `DisplayMessage`; the Stop is re-sent every 15 s while the client keeps reporting playback.
+- PASS direct-play and playback-start messages delivered.
+- PASS transcode warning with a **real client** (Emby Web in the app browser, 720p MPEG-4 MKV forced to transcode by Chromium): event "Transcode started: the video format is not supported" logged and the "Transcode Warning" dialog displayed with the configured text.
+- PASS transcode blocking decision (`EnableTranscodeBlocking`, mkv in the blocklist): server log "Blocking transcode ... Source format 'mkv' is on the blocklist"; the "Playback Blocked" `DisplayMessage` and `Playstate: Stop` were delivered to the client's websocket (captured in the page). **Caveat:** the in-pane Emby Web player did not act on the Stop (nor on Emby's own `Sessions/{id}/Playing/Stop`), so end-to-end "playback actually stops" was not observed for web; the plugin side is verified. Stop is only a request to the client; a hardening idea is also killing the transcode/session server-side.
+- NOT TESTED: resolution blocking, concurrent-transcode limit, paused-stream timeout, library time restrictions, time windows, external Public API with a real key.
+
+### Fragility found (original behavior, unchanged)
+`TranscodeMonitor.HandleMediaStatusNotification` checks `session.TranscodingInfo == null` at the instant playback-start is reported and, if null, treats the stream as direct play and returns without re-checking (the `InitialDelaySeconds` wait only happens when TI is already non-null). Scripted clients that report start before Emby attaches TranscodingInfo get no warning (or a false "Direct Play" message); real Emby Web attached it in time. Candidate improvement: re-read the session after the delay before deciding. Behavior change, not applied.
+
+### Test hygiene
+Probe users deleted, plugin config restored to defaults, plugin log and orphan watch-time data cleared, generated 288 MB test clip removed from `C:\claude\Movies` and library refreshed, helper websocket process stopped. Plugin and server left running.

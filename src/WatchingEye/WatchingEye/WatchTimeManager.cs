@@ -103,10 +103,6 @@ public static class WatchTimeManager
 		{
 			return limitedUser.IsEnabled ? limitedUser : null;
 		}
-		if (config.EnableGlobalLimit)
-		{
-			return config.GlobalLimitedUser;
-		}
 		return null;
 	}
 

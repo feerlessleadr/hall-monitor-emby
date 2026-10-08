@@ -186,19 +186,8 @@
                     </div>
 
                     <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
-                        <h2 style="margin-top:0;">Global Rules for All Users</h2>
-                        <div class="checkboxContainer">
-                            <label><input is="emby-checkbox" type="checkbox" id="chkEnableGlobalLimit" data-config-key="EnableGlobalLimit" /><span>Enable Global Watch Time Rules</span></label>
-                            <div class="fieldDescription">If enabled, these rules will apply to ALL users who are not in the exclusion list and do not have their own specific rules below.</div>
-                        </div>
-
-                        <div id="globalUserEditorContainer" class="hide" style="margin-top:1em; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5em;">
-                        </div>
-                    </div>
-
-                    <div class="paper-card" style="padding: 1.5em; margin-top: 2em;">
-                        <h3 style="margin-top:0;">Specific Rules for Individual Users</h3>
-                        <div class="fieldDescription">Use this section to add users who need different rules from the global settings, or to manage users when global rules are disabled.</div>
+                        <h3 style="margin-top:0;">Limited Users</h3>
+                        <div class="fieldDescription">Add the users whose watch time should be limited. Only users listed here are affected.</div>
                         <div id="limitedUsersContainer">
                         </div>
                         <button is="emby-button" type="button" class="raised button-submit" id="btnAddLimitedUser" style="margin-top: 1em;">

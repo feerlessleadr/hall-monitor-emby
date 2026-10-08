@@ -34,10 +34,6 @@ public class PluginConfiguration : BasePluginConfiguration
 
 	public List<LibraryTimeRestriction> LibraryTimeRestrictions { get; set; } = new List<LibraryTimeRestriction>();
 
-	public bool EnableGlobalLimit { get; set; } = false;
-
-	public LimitedUser GlobalLimitedUser { get; set; }
-
 	public PluginConfiguration()
 	{
 		LimitedUsers = new List<LimitedUser>();
@@ -45,20 +41,5 @@ public class PluginConfiguration : BasePluginConfiguration
 		ExcludedClients = new List<string>();
 		ExcludedLibraryIds = new List<string>();
 		LibraryTimeRestrictions = new List<LibraryTimeRestriction>();
-		GlobalLimitedUser = new LimitedUser
-		{
-			UserId = "global_user_config",
-			Username = "Global Settings",
-			IsEnabled = true,
-			EnableDailyLimit = false,
-			DailyLimitMinutes = 180,
-			EnableWeeklyLimit = true,
-			WeeklyLimitHours = 25,
-			EnableDailyReset = true,
-			EnableWeeklyReset = false,
-			EnableMonthlyReset = false,
-			EnableYearlyReset = false,
-			TimeWindows = new List<DailyTimeWindow>()
-		};
 	}
 }

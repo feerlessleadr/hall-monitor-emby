@@ -1,7 +1,9 @@
+using MediaBrowser.Controller.Net;
 using MediaBrowser.Model.Services;
 
 namespace WatchingEye.Services;
 
+[Authenticated(Roles = "Admin")]
 [Route("/WatchingEye/ExtendPeriodTime", "POST", Summary = "Extends a user's watch time for a specific period.")]
 public class ExtendPeriodTimeRequest : IReturnVoid, IReturn
 {

@@ -1,7 +1,9 @@
+using MediaBrowser.Controller.Net;
 using MediaBrowser.Model.Services;
 
 namespace WatchingEye.Services;
 
+[Authenticated(Roles = "Admin")]
 [Route("/WatchingEye/TimeOutUser", "POST", Summary = "Temporarily blocks a user from playback.")]
 public class TimeOutUserRequest : IReturnVoid, IReturn
 {

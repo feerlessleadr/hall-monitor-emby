@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
 [assembly: AssemblyTitle("WatchingEye")]
-[assembly: AssemblyDescription("A plugin to notify users when transcoding and monitor and limit user watch time.")]
+[assembly: AssemblyDescription("A plugin to monitor and limit user watch time.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("WatchingEye")]

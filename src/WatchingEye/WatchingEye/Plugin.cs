@@ -34,7 +34,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 
 	public override string Name => "Watching Eye";
 
-	public override string Description => "A plugin to monitor and limit user watch time, with optional transcode notifications.";
+	public override string Description => "A plugin to monitor and limit user watch time.";
 
 	public override Guid Id => Guid.Parse("e8c3b1b3-4f56-4f38-a28a-2e6c5a043007");
 

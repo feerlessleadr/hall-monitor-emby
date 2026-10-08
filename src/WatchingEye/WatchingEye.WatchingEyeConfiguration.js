@@ -49,7 +49,7 @@
 
             const html = events.map(entry => {
                 const eventDate = new Date(entry.Timestamp).toLocaleString();
-                const icon = entry.EventType === 'Transcode' ? 'sync_problem' : 'timer_off';
+                const icon = 'timer_off';
 
                 return `
                 <div class="listItem" style="display:flex; align-items: center; padding: 0.8em 0;">

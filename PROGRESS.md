@@ -4,7 +4,7 @@
 - [x] Original preserved: `original/WatchingEye.dll` (read-only; identical hash to the source file in the folder root, which is git-ignored).
 - [x] Recon: not obfuscated (clean names, no control-flow mangling). net6.0, AssemblyVersion 1.6.8.0.
 - [x] Decompiled with `ilspycmd -p` -> `src/WatchingEye` (commit 1, untouched output).
-- [x] csproj fixed (commit 2): `MediaBrowser.Server.Core` 4.9.1.90 from NuGet covers all references (Model/Common/Controller 4.9.1.90), so no Emby install DLLs are needed. RootNamespace set, LangVersion latest. **Builds with 0 errors, 0 warnings on first try**; no async/goto/dynamic fixes were needed.
+- [x] csproj fixed (commit 2): `MediaBrowser.Server.Core` 4.9.1.90 from NuGet covers all references (Model/Common/Controller 4.9.1.90), so no Emby install DLLs are needed. RootNamespace set, LangVersion latest. **Builds with 0 errors on first try** (1 CS4014 un-awaited-call warning at TranscodeMonitor.cs:348, original fire-and-forget behavior); no async/goto/dynamic fixes were needed.
 - [x] Verified vs original (reflection via MetadataLoadContext, all members incl. non-public): 920-line dumps identical except one compiler-generated lambda name (`<Start>b__9_0` vs `b__10_0`). Same 3 embedded resources with identical byte sizes, same GUID, name, version.
 - [x] Cleanup commits: removed `//IL_xxxx` comments; renamed decompiler-style locals.
 

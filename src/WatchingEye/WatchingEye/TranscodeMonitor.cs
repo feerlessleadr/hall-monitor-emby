@@ -219,20 +219,20 @@ public static class TranscodeMonitor
 		{
 			_transcodeNotificationsSent.TryRemove(item, out value3);
 		}
-		List<string> list2 = _directPlayNotificationsSent.Keys.Where((string k) => k.StartsWith(sessionId + "_")).ToList();
-		foreach (string item2 in list2)
+		List<string> directPlayKeys = _directPlayNotificationsSent.Keys.Where((string k) => k.StartsWith(sessionId + "_")).ToList();
+		foreach (string directPlayKey in directPlayKeys)
 		{
-			_directPlayNotificationsSent.TryRemove(item2, out value3);
+			_directPlayNotificationsSent.TryRemove(directPlayKey, out value3);
 		}
-		List<string> list3 = _playbackStartNotificationsSent.Keys.Where((string k) => k.StartsWith(sessionId + "_")).ToList();
-		foreach (string item3 in list3)
+		List<string> playbackStartKeys = _playbackStartNotificationsSent.Keys.Where((string k) => k.StartsWith(sessionId + "_")).ToList();
+		foreach (string playbackStartKey in playbackStartKeys)
 		{
-			_playbackStartNotificationsSent.TryRemove(item3, out value3);
+			_playbackStartNotificationsSent.TryRemove(playbackStartKey, out value3);
 		}
-		List<string> list4 = _notificationLoopActive.Keys.Where((string k) => k.StartsWith(sessionId + "_")).ToList();
-		foreach (string item4 in list4)
+		List<string> loopKeys = _notificationLoopActive.Keys.Where((string k) => k.StartsWith(sessionId + "_")).ToList();
+		foreach (string loopKey in loopKeys)
 		{
-			_notificationLoopActive.TryRemove(item4, out value2);
+			_notificationLoopActive.TryRemove(loopKey, out value2);
 		}
 		_sessionsBeingBlocked.TryRemove(sessionId, out value2);
 	}

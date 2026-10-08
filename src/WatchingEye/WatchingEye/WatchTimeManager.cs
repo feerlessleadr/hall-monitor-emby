@@ -126,13 +126,13 @@ public static class WatchTimeManager
 			{
 				return;
 			}
-			bool flag = false;
+			bool anyChanged = false;
 			foreach (string key in _userWatchData.Keys)
 			{
 				LimitedUser userConfig = GetUserConfig(key, pluginConfiguration);
 				if (userConfig != null)
 				{
-					flag |= ProcessResetsForUser(key, userConfig, utcNow);
+					anyChanged |= ProcessResetsForUser(key, userConfig, utcNow);
 				}
 			}
 			List<string> list = (from s in _sessionManager.Sessions.Where((SessionInfo s) =>
@@ -187,7 +187,7 @@ public static class WatchTimeManager
 				orAdd.WatchedTimeTicksWeekly += ticks;
 				orAdd.WatchedTimeTicksMonthly += ticks;
 				orAdd.WatchedTimeTicksYearly += ticks;
-				flag = true;
+				anyChanged = true;
 				if (IsTimeLimitExceeded(userConfig2, orAdd))
 				{
 					Task.Run(async () =>
@@ -209,14 +209,14 @@ public static class WatchTimeManager
 				}
 				else
 				{
-					SessionInfo val = _sessionManager.Sessions.FirstOrDefault((SessionInfo s) => string.Equals(s.UserId, userId, StringComparison.OrdinalIgnoreCase) && s.NowPlayingItem != null);
-					if (val != null)
+					SessionInfo activeSession = _sessionManager.Sessions.FirstOrDefault((SessionInfo s) => string.Equals(s.UserId, userId, StringComparison.OrdinalIgnoreCase) && s.NowPlayingItem != null);
+					if (activeSession != null)
 					{
-						ProcessThresholdNotifications(val, userConfig2, orAdd);
+						ProcessThresholdNotifications(activeSession, userConfig2, orAdd);
 					}
 				}
 			}
-			if (flag)
+			if (anyChanged)
 			{
 				_isDirty = true;
 			}
@@ -614,8 +614,8 @@ public static class WatchTimeManager
 			return;
 		}
 		List<SessionInfo> sessions = _sessionManager.Sessions.Where((SessionInfo s) => string.Equals(s.UserId, userId, StringComparison.OrdinalIgnoreCase) && s.IsActive).ToList();
-		SessionInfo? val = sessions.FirstOrDefault((SessionInfo s) => !string.IsNullOrEmpty(s.UserName));
-		string username = ((val != null) ? val.UserName : null) ?? "Unknown";
+		SessionInfo? namedSession = sessions.FirstOrDefault((SessionInfo s) => !string.IsNullOrEmpty(s.UserName));
+		string username = ((namedSession != null) ? namedSession.UserName : null) ?? "Unknown";
 		if (reason == PlaybackBlockReason.TimeLimitExceeded && _limitServerNotified.TryAdd(userId, value: true))
 		{
 			string clients = string.Join(", ", sessions.Select((SessionInfo s) => s.Client).Distinct());

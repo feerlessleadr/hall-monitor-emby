@@ -244,7 +244,7 @@
                     }).then(() => {
                         toast(`User placed in time-out.`);
                         this.renderLimitedUsers(this.view, this.config);
-                    }).catch(() => toast({ type: 'error', text: 'Error placing user in time-out.' }));
+                    }).catch(() => toast({ type: 'error', text: 'Could not place the user in time-out (the limiter must be enabled and the user enabled under Limited Users).' }));
                     return;
                 }
 

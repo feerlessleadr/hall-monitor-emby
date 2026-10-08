@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
@@ -41,9 +42,10 @@ public class WatchTimeService : IService
 
 	public void Post(TimeOutUserRequest request)
 	{
-		if (!string.IsNullOrEmpty(request.UserId) && request.Minutes > 0)
+		string error = WatchTimeManager.TimeOutUser(request.UserId, request.Minutes);
+		if (error != null)
 		{
-			WatchTimeManager.TimeOutUser(request.UserId, request.Minutes);
+			throw new ArgumentException(error);
 		}
 	}
 

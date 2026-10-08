@@ -57,7 +57,11 @@ public class PublicApiService : IService, IRequiresRequest
 		{
 			throw new ArgumentException("Bad Request: UserId and a positive number of minutes are required.");
 		}
-		WatchTimeManager.TimeOutUser(request.UserId, request.Minutes);
+		string error = WatchTimeManager.TimeOutUser(request.UserId, request.Minutes);
+		if (error != null)
+		{
+			throw new ArgumentException(error);
+		}
 	}
 
 	public void Post(PublicClearTimeOutRequest request)

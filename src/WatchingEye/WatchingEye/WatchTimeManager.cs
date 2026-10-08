@@ -786,11 +786,20 @@ public static class WatchTimeManager
 		SaveWatchTimeDataImmediate();
 	}
 
-	public static void TimeOutUser(string userId, int minutes)
+	public static string? TimeOutUser(string userId, int minutes)
 	{
-		if (minutes <= 0)
+		if (string.IsNullOrEmpty(userId) || minutes <= 0)
 		{
-			return;
+			return "A user id and a positive number of minutes are required.";
+		}
+		PluginConfiguration pluginConfiguration = ((BasePlugin<PluginConfiguration>)(object)Plugin.Instance)?.Configuration;
+		if (pluginConfiguration == null || !pluginConfiguration.EnableWatchTimeLimiter)
+		{
+			return "The Watch Time Limiter is disabled, so a time-out would not be enforced.";
+		}
+		if (GetUserConfig(userId, pluginConfiguration) == null)
+		{
+			return "The user is not an enabled user in Limited Users, so a time-out would not be enforced.";
 		}
 		UserWatchData orAdd = _userWatchData.GetOrAdd(userId, (string id) => new UserWatchData
 		{
@@ -819,6 +828,7 @@ public static class WatchTimeManager
 				}
 			}
 		});
+		return null;
 	}
 
 	public static void ClearTimeOutForUser(string userId)

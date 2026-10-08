@@ -29,3 +29,12 @@
 
 ## Verification tooling
 Throwaway MetadataLoadContext dumper lived in the session scratchpad (not in repo). Re-do the diff by dumping all members of the original and rebuilt DLLs and diffing.
+
+## Test run on Emby 4.10.1.0 (unmodified rebuild, 2026-10-08)
+Rebuilt Release DLL copied to the test server's `programdata/plugins`. Results:
+- PASS: loads, registered via `/Plugins` as Watching Eye 1.6.8.0 / GUID e8c3b1b3-..., entry point starts, no errors. (Built against 4.9.1.90, runs on 4.10.1.0 / .NET 8.)
+- PASS: embedded config page + js served; anonymous calls to plugin routes -> 401.
+- PASS: limiter, using a simulated client (Sessions/Playing + Progress reports) with a 1-minute daily limit. Watch time accrues at 15 s per tick, `LimitReached` event logged at ~60 s, shows in `GetLogEvents`. Config backup/restore through the Plugins API works.
+- NOT TESTED: config page UI rendering/saving in a browser, transcode warnings/blocking, in-client messages (the simulated client has no websocket, so message delivery and the actual stop command were not observed).
+- **CONFIRMED vulnerability (finding 3):** a freshly created non-admin user's token got 200/204 on `LimitedUsersStatus`, `GetLogEvents`, `GetClientList`, `ExtendTime`, `TimeOutUser`, `ClearTimeOut` and `ClearLogs`, while Emby's own `/Plugins` returned 403 for that user. The probe's `ExtendTime` really granted a 300 s credit (which is why the first enforcement run didn't stop). Fix = `[Authenticated(Roles = "Admin")]` on the non-public request classes; not applied (behavior change, awaiting approval).
+- Test hygiene: probe user deleted, plugin config restored to defaults, plugin log cleared. Plugin left installed on the test server.

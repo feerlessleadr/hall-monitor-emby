@@ -4,7 +4,7 @@ Emby Server plugin that limits how long selected users can watch: per-user daily
 per-day limits, allowed time windows, extra time, and time-outs. Only users listed under *Limited Users* are affected.
 
 > **Recovered via decompilation.** The original author deleted the GitHub repository. This source was reconstructed from
-> `WatchingEye.dll` **v1.6.8.0** (`original/WatchingEye.dll`, SHA-256
+> `WatchingEye.dll` **v1.6.8.0** (the original binary is not included in this repository; SHA-256
 > `099F8C1D474ECACA05384701DC4D3FFA7DB76379C7B83EEA748C8E2547CCDEBD`) using `ilspycmd` 11.1, then maintained by hand.
 > The original author is unknown (AssemblyCompany is empty; copyright line "(c) 2025"). Comments and any original
 > tests/docs were lost. Features unrelated to watch time (transcode warnings, library restrictions, global rules,

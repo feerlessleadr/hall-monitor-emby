@@ -1033,6 +1033,7 @@ public static class WatchTimeManager
 		try
 		{
 			string text = File.ReadAllText(_watchTimeDataPath);
+			System.Text.Json.JsonDocument.Parse(text).Dispose();
 			WatchTimePersistenceData watchTimePersistenceData = _jsonSerializer.DeserializeFromString<WatchTimePersistenceData>(text);
 			if (watchTimePersistenceData?.UserWatchTimes == null)
 			{

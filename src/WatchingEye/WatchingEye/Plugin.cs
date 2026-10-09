@@ -29,6 +29,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 
 	public static Plugin? Instance { get; private set; }
 
+	public static void LogWarning(string message)
+	{
+		Instance?._logger?.Warn("[Watching Eye] " + message, Array.Empty<object>());
+	}
+
 	public override string Name => "Watching Eye";
 
 	public override string Description => "A plugin to monitor and limit user watch time.";
@@ -52,6 +57,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 	{
 		if (configuration is PluginConfiguration pluginConfiguration)
 		{
+			ConfigurationValidator.Normalize(pluginConfiguration);
 			pluginConfiguration.ConfigurationVersion = Guid.NewGuid().ToString();
 		}
 		base.UpdateConfiguration(configuration);
@@ -76,6 +82,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 
 	public void Run()
 	{
+		ConfigurationValidator.Normalize(((BasePlugin<PluginConfiguration>)(object)this).Configuration);
 		InAppNotificationService.Start(_logger, _sessionManager);
 		PlaybackMonitor.Start(_sessionManager, _logger);
 		WatchTimeManager.Start(_sessionManager, _logger, _appPaths, _jsonSerializer);

@@ -32,9 +32,9 @@ public static class WatchTimeManager
 
 	private static readonly int TimerIntervalSeconds = 15;
 
-	private static readonly int DeferredSaveIntervalSeconds = 300;
+	private static readonly int DeferredSaveIntervalSeconds = 60;
 
-	private static ConcurrentDictionary<string, UserWatchData> _userWatchData = new ConcurrentDictionary<string, UserWatchData>();
+	private static ConcurrentDictionary<string, UserWatchData> _userWatchData = new ConcurrentDictionary<string, UserWatchData>(StringComparer.OrdinalIgnoreCase);
 
 	private static DateTime _lastTimerFire = DateTime.UtcNow;
 
@@ -42,15 +42,15 @@ public static class WatchTimeManager
 
 	private static DateTime _lastSaveTime = DateTime.UtcNow;
 
-	private static readonly ConcurrentDictionary<string, bool> _limitServerNotified = new ConcurrentDictionary<string, bool>();
+	private static readonly ConcurrentDictionary<string, bool> _limitServerNotified = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
-	private static readonly ConcurrentDictionary<string, ConcurrentDictionary<int, bool>> _dailyThresholdsNotified = new ConcurrentDictionary<string, ConcurrentDictionary<int, bool>>();
+	private static readonly ConcurrentDictionary<string, ConcurrentDictionary<int, bool>> _dailyThresholdsNotified = new ConcurrentDictionary<string, ConcurrentDictionary<int, bool>>(StringComparer.OrdinalIgnoreCase);
 
-	private static readonly ConcurrentDictionary<string, ConcurrentDictionary<int, bool>> _weeklyThresholdsNotified = new ConcurrentDictionary<string, ConcurrentDictionary<int, bool>>();
+	private static readonly ConcurrentDictionary<string, ConcurrentDictionary<int, bool>> _weeklyThresholdsNotified = new ConcurrentDictionary<string, ConcurrentDictionary<int, bool>>(StringComparer.OrdinalIgnoreCase);
 
-	private static readonly ConcurrentDictionary<string, ConcurrentDictionary<int, bool>> _monthlyThresholdsNotified = new ConcurrentDictionary<string, ConcurrentDictionary<int, bool>>();
+	private static readonly ConcurrentDictionary<string, ConcurrentDictionary<int, bool>> _monthlyThresholdsNotified = new ConcurrentDictionary<string, ConcurrentDictionary<int, bool>>(StringComparer.OrdinalIgnoreCase);
 
-	private static readonly ConcurrentDictionary<string, ConcurrentDictionary<int, bool>> _yearlyThresholdsNotified = new ConcurrentDictionary<string, ConcurrentDictionary<int, bool>>();
+	private static readonly ConcurrentDictionary<string, ConcurrentDictionary<int, bool>> _yearlyThresholdsNotified = new ConcurrentDictionary<string, ConcurrentDictionary<int, bool>>(StringComparer.OrdinalIgnoreCase);
 
 	private static readonly ConcurrentDictionary<string, List<int>> _parsedThresholdsCache = new ConcurrentDictionary<string, List<int>>();
 
@@ -125,7 +125,14 @@ public static class WatchTimeManager
 				LimitedUser userConfig = GetUserConfig(key, pluginConfiguration);
 				if (userConfig != null)
 				{
-					anyChanged |= ProcessResetsForUser(key, userConfig, utcNow);
+					try
+					{
+						anyChanged |= ProcessResetsForUser(key, userConfig, utcNow);
+					}
+					catch (Exception resetEx)
+					{
+						_logger?.ErrorException("[WatchTimeManager] Error processing resets for a user.", resetEx, Array.Empty<object>());
+					}
 				}
 			}
 			List<string> list = (from s in _sessionManager.Sessions.Where((SessionInfo s) =>
@@ -145,6 +152,8 @@ public static class WatchTimeManager
 				select s.UserId).Distinct().ToList();
 			foreach (string userId in list)
 			{
+				try
+				{
 				LimitedUser userConfig2 = GetUserConfig(userId, pluginConfiguration);
 				if (userConfig2 == null)
 				{
@@ -207,6 +216,11 @@ public static class WatchTimeManager
 					{
 						ProcessThresholdNotifications(activeSession, userConfig2, orAdd);
 					}
+				}
+				}
+				catch (Exception userEx)
+				{
+					_logger?.ErrorException("[WatchTimeManager] Error processing a user during the timer tick.", userEx, Array.Empty<object>());
 				}
 			}
 			if (anyChanged)
@@ -384,7 +398,8 @@ public static class WatchTimeManager
 
 	private static DateTime GetLastYearlyResetTrigger(DateTime localNow, int resetMonth, int resetDay, double resetHour)
 	{
-		DateTime dateTime = new DateTime(localNow.Year, resetMonth, resetDay, 0, 0, 0, DateTimeKind.Local).AddHours(resetHour);
+		int clampedMonth = Math.Clamp(resetMonth, 1, 12);
+		DateTime dateTime = new DateTime(localNow.Year, clampedMonth, Math.Clamp(resetDay, 1, DateTime.DaysInMonth(localNow.Year, clampedMonth)), 0, 0, 0, DateTimeKind.Local).AddHours(resetHour);
 		if (localNow < dateTime)
 		{
 			dateTime = dateTime.AddYears(-1);
@@ -615,10 +630,14 @@ public static class WatchTimeManager
 		}
 		List<SessionInfo> sessions = _sessionManager.Sessions.Where((SessionInfo s) => string.Equals(s.UserId, userId, StringComparison.OrdinalIgnoreCase) && s.IsActive).ToList();
 		SessionInfo? namedSession = sessions.FirstOrDefault((SessionInfo s) => !string.IsNullOrEmpty(s.UserName));
-		string username = ((namedSession != null) ? namedSession.UserName : null) ?? "Unknown";
+		string username = LogSanitizer.Clean((namedSession != null) ? namedSession.UserName : null);
+		if (username.Length == 0)
+		{
+			username = "Unknown";
+		}
 		if (reason == PlaybackBlockReason.TimeLimitExceeded && _limitServerNotified.TryAdd(userId, value: true))
 		{
-			string clients = string.Join(", ", sessions.Select((SessionInfo s) => s.Client).Distinct());
+			string clients = LogSanitizer.Clean(string.Join(", ", sessions.Select((SessionInfo s) => LogSanitizer.Clean(s.Client)).Where((string c) => c.Length > 0).Distinct()), 200);
 			LogManager.LogLimitReached(userId, username, (clients.Length > 0) ? clients : "System");
 			if (config.EnableWatchLimitNotifications)
 			{
@@ -707,125 +726,193 @@ public static class WatchTimeManager
 		return list;
 	}
 
-	public static void ExtendTimeForUser(string userId, int minutesToExtend)
+	public const int MaxMinutesPerRequest = 43200;
+
+	private static readonly long MaxCreditTicks = TimeSpan.FromDays(3650.0).Ticks;
+
+	private static readonly string[] ValidPeriods = new string[4] { "daily", "weekly", "monthly", "yearly" };
+
+	private static long AddCredit(long current, long add)
 	{
-		UserWatchData orAdd = _userWatchData.GetOrAdd(userId, (string id) => new UserWatchData
-		{
-			UserId = id
-		});
-		long ticks = TimeSpan.FromMinutes(minutesToExtend).Ticks;
-		orAdd.TimeCreditTicksDaily += ticks;
-		orAdd.TimeCreditTicksWeekly += ticks;
-		orAdd.TimeCreditTicksMonthly += ticks;
-		orAdd.TimeCreditTicksYearly += ticks;
-		_limitServerNotified.TryRemove(userId, out var _);
-		SaveWatchTimeDataImmediate();
+		long num = ((add > 0 && current > MaxCreditTicks - add) ? MaxCreditTicks : (current + add));
+		return Math.Clamp(num, 0L, MaxCreditTicks);
 	}
 
-	public static void ExtendPeriodTimeForUser(string userId, string period, int minutesToExtend)
+	private static string? ValidateMinutes(int minutes)
 	{
-		UserWatchData orAdd = _userWatchData.GetOrAdd(userId, (string id) => new UserWatchData
+		if (minutes < 1 || minutes > MaxMinutesPerRequest)
 		{
-			UserId = id
-		});
-		long ticks = TimeSpan.FromMinutes(minutesToExtend).Ticks;
-		switch (period.ToLowerInvariant())
-		{
-		default:
-			return;
-		case "daily":
-			orAdd.TimeCreditTicksDaily += ticks;
-			break;
-		case "weekly":
-			orAdd.TimeCreditTicksWeekly += ticks;
-			break;
-		case "monthly":
-			orAdd.TimeCreditTicksMonthly += ticks;
-			break;
-		case "yearly":
-			orAdd.TimeCreditTicksYearly += ticks;
-			break;
+			return $"Minutes must be between 1 and {MaxMinutesPerRequest}.";
 		}
-		_limitServerNotified.TryRemove(userId, out var _);
-		SaveWatchTimeDataImmediate();
+		return null;
 	}
 
-	public static void ResetPeriodTimeForUser(string userId, string period)
+	private static string? ValidatePeriod(string? period)
 	{
-		UserWatchData orAdd = _userWatchData.GetOrAdd(userId, (string id) => new UserWatchData
+		if (string.IsNullOrWhiteSpace(period) || !ValidPeriods.Contains(period.Trim().ToLowerInvariant()))
+		{
+			return "Period must be one of: daily, weekly, monthly, yearly.";
+		}
+		return null;
+	}
+
+	/// <summary>Resolves a caller-supplied id to the id stored in Limited Users (matching ignores case).</summary>
+	private static string? ResolveListedUser(string? userId, out string canonicalId)
+	{
+		canonicalId = string.Empty;
+		if (string.IsNullOrWhiteSpace(userId) || userId.Length > LogSanitizer.MaxNameLength)
+		{
+			return "A valid user id is required.";
+		}
+		PluginConfiguration pluginConfiguration = ((BasePlugin<PluginConfiguration>)(object)Plugin.Instance)?.Configuration;
+		LimitedUser limitedUser = pluginConfiguration?.LimitedUsers.FirstOrDefault((LimitedUser u) => u.UserId.Equals(userId, StringComparison.OrdinalIgnoreCase));
+		if (limitedUser == null)
+		{
+			return "The user is not in the Limited Users list.";
+		}
+		canonicalId = limitedUser.UserId;
+		return null;
+	}
+
+	private static UserWatchData GetOrCreateData(string canonicalId)
+	{
+		return _userWatchData.GetOrAdd(canonicalId, (string id) => new UserWatchData
 		{
 			UserId = id
 		});
-		ConcurrentDictionary<int, bool> value;
-		switch (period.ToLowerInvariant())
+	}
+
+	public static string? ExtendTimeForUser(string userId, int minutesToExtend)
+	{
+		string? text = ValidateMinutes(minutesToExtend);
+		if (text != null)
 		{
-		default:
-			return;
+			return text;
+		}
+		text = ResolveListedUser(userId, out string canonicalId);
+		if (text != null)
+		{
+			return text;
+		}
+		UserWatchData userWatchData = GetOrCreateData(canonicalId);
+		long ticks = TimeSpan.FromMinutes(minutesToExtend).Ticks;
+		userWatchData.TimeCreditTicksDaily = AddCredit(userWatchData.TimeCreditTicksDaily, ticks);
+		userWatchData.TimeCreditTicksWeekly = AddCredit(userWatchData.TimeCreditTicksWeekly, ticks);
+		userWatchData.TimeCreditTicksMonthly = AddCredit(userWatchData.TimeCreditTicksMonthly, ticks);
+		userWatchData.TimeCreditTicksYearly = AddCredit(userWatchData.TimeCreditTicksYearly, ticks);
+		_limitServerNotified.TryRemove(canonicalId, out var _);
+		SaveWatchTimeDataImmediate();
+		return null;
+	}
+
+	public static string? ExtendPeriodTimeForUser(string userId, string period, int minutesToExtend)
+	{
+		string? text = ValidateMinutes(minutesToExtend) ?? ValidatePeriod(period);
+		if (text != null)
+		{
+			return text;
+		}
+		text = ResolveListedUser(userId, out string canonicalId);
+		if (text != null)
+		{
+			return text;
+		}
+		UserWatchData userWatchData = GetOrCreateData(canonicalId);
+		long ticks = TimeSpan.FromMinutes(minutesToExtend).Ticks;
+		switch (period.Trim().ToLowerInvariant())
+		{
 		case "daily":
-			orAdd.WatchedTimeTicksDaily = 0L;
-			orAdd.TimeCreditTicksDaily = 0L;
-			_dailyThresholdsNotified.TryRemove(userId, out value);
+			userWatchData.TimeCreditTicksDaily = AddCredit(userWatchData.TimeCreditTicksDaily, ticks);
 			break;
 		case "weekly":
-			orAdd.WatchedTimeTicksWeekly = 0L;
-			orAdd.TimeCreditTicksWeekly = 0L;
-			_weeklyThresholdsNotified.TryRemove(userId, out value);
+			userWatchData.TimeCreditTicksWeekly = AddCredit(userWatchData.TimeCreditTicksWeekly, ticks);
 			break;
 		case "monthly":
-			orAdd.WatchedTimeTicksMonthly = 0L;
-			orAdd.TimeCreditTicksMonthly = 0L;
-			_monthlyThresholdsNotified.TryRemove(userId, out value);
+			userWatchData.TimeCreditTicksMonthly = AddCredit(userWatchData.TimeCreditTicksMonthly, ticks);
 			break;
-		case "yearly":
-			orAdd.WatchedTimeTicksYearly = 0L;
-			orAdd.TimeCreditTicksYearly = 0L;
-			_yearlyThresholdsNotified.TryRemove(userId, out value);
+		default:
+			userWatchData.TimeCreditTicksYearly = AddCredit(userWatchData.TimeCreditTicksYearly, ticks);
 			break;
 		}
-		_limitServerNotified.TryRemove(userId, out var _);
+		_limitServerNotified.TryRemove(canonicalId, out var _);
 		SaveWatchTimeDataImmediate();
+		return null;
+	}
+
+	public static string? ResetPeriodTimeForUser(string userId, string period)
+	{
+		string? text = ValidatePeriod(period);
+		if (text != null)
+		{
+			return text;
+		}
+		if (string.IsNullOrWhiteSpace(userId) || !_userWatchData.TryGetValue(userId, out UserWatchData value))
+		{
+			return null;
+		}
+		string key = value.UserId;
+		ConcurrentDictionary<int, bool> value2;
+		switch (period.Trim().ToLowerInvariant())
+		{
+		case "daily":
+			value.WatchedTimeTicksDaily = 0L;
+			value.TimeCreditTicksDaily = 0L;
+			_dailyThresholdsNotified.TryRemove(key, out value2);
+			break;
+		case "weekly":
+			value.WatchedTimeTicksWeekly = 0L;
+			value.TimeCreditTicksWeekly = 0L;
+			_weeklyThresholdsNotified.TryRemove(key, out value2);
+			break;
+		case "monthly":
+			value.WatchedTimeTicksMonthly = 0L;
+			value.TimeCreditTicksMonthly = 0L;
+			_monthlyThresholdsNotified.TryRemove(key, out value2);
+			break;
+		default:
+			value.WatchedTimeTicksYearly = 0L;
+			value.TimeCreditTicksYearly = 0L;
+			_yearlyThresholdsNotified.TryRemove(key, out value2);
+			break;
+		}
+		_limitServerNotified.TryRemove(key, out var _);
+		SaveWatchTimeDataImmediate();
+		return null;
 	}
 
 	public static string? TimeOutUser(string userId, int minutes)
 	{
-		if (string.IsNullOrEmpty(userId) || minutes <= 0)
+		string? text = ValidateMinutes(minutes);
+		if (text != null)
 		{
-			return "A user id and a positive number of minutes are required.";
+			return text;
 		}
 		PluginConfiguration pluginConfiguration = ((BasePlugin<PluginConfiguration>)(object)Plugin.Instance)?.Configuration;
 		if (pluginConfiguration == null || !pluginConfiguration.EnableWatchTimeLimiter)
 		{
 			return "The Watch Time Limiter is disabled, so a time-out would not be enforced.";
 		}
-		if (GetUserConfig(userId, pluginConfiguration) == null)
+		text = ResolveListedUser(userId, out string canonicalId);
+		if (text != null)
+		{
+			return text;
+		}
+		if (GetUserConfig(canonicalId, pluginConfiguration) == null)
 		{
 			return "The user is not an enabled user in Limited Users, so a time-out would not be enforced.";
 		}
-		UserWatchData orAdd = _userWatchData.GetOrAdd(userId, (string id) => new UserWatchData
-		{
-			UserId = id
-		});
-		orAdd.TimeOutUntil = DateTime.UtcNow.AddMinutes(minutes);
+		GetOrCreateData(canonicalId).TimeOutUntil = DateTime.UtcNow.AddMinutes(minutes);
 		SaveWatchTimeDataImmediate();
-		ILogger? logger = _logger;
-		if (logger != null)
-		{
-			logger.Info($"[WatchTimeManager] User {userId} has been timed out for {minutes} minutes.", Array.Empty<object>());
-		}
+		_logger?.Info($"[WatchTimeManager] User {LogSanitizer.Clean(canonicalId)} has been timed out for {minutes} minutes.", Array.Empty<object>());
 		Task.Run(async () =>
 		{
 			try
 			{
-				await StopPlaybackForUser(userId, PlaybackBlockReason.TimedOut).ConfigureAwait(continueOnCapturedContext: false);
+				await StopPlaybackForUser(canonicalId, PlaybackBlockReason.TimedOut).ConfigureAwait(continueOnCapturedContext: false);
 			}
 			catch (Exception ex)
 			{
-				Exception ex2 = ex;
-				ILogger? logger2 = _logger;
-				if (logger2 != null)
-				{
-					logger2.ErrorException("[WatchTimeManager] Error stopping playback during timeout for user " + userId + ".", ex2, Array.Empty<object>());
-				}
+				_logger?.ErrorException("[WatchTimeManager] Error stopping playback during timeout for user " + LogSanitizer.Clean(canonicalId) + ".", ex, Array.Empty<object>());
 			}
 		});
 		return null;
@@ -833,22 +920,19 @@ public static class WatchTimeManager
 
 	public static void ClearTimeOutForUser(string userId)
 	{
-		if (_userWatchData.TryGetValue(userId, out UserWatchData value))
+		if (!string.IsNullOrWhiteSpace(userId) && _userWatchData.TryGetValue(userId, out UserWatchData value))
 		{
 			value.TimeOutUntil = DateTime.MinValue;
 			SaveWatchTimeDataImmediate();
-			ILogger? logger = _logger;
-			if (logger != null)
-			{
-				logger.Info("[WatchTimeManager] Cleared time-out for user " + userId + ".", Array.Empty<object>());
-			}
+			_logger?.Info("[WatchTimeManager] Cleared time-out for user " + LogSanitizer.Clean(value.UserId) + ".", Array.Empty<object>());
 		}
 	}
 
 	public static void ResetWatchTimeForUser(string userId)
 	{
-		if (_userWatchData.TryGetValue(userId, out UserWatchData value))
+		if (!string.IsNullOrWhiteSpace(userId) && _userWatchData.TryGetValue(userId, out UserWatchData value))
 		{
+			string userId2 = value.UserId;
 			value.WatchedTimeTicksDaily = 0L;
 			value.TimeCreditTicksDaily = 0L;
 			value.WatchedTimeTicksWeekly = 0L;
@@ -857,17 +941,21 @@ public static class WatchTimeManager
 			value.TimeCreditTicksMonthly = 0L;
 			value.WatchedTimeTicksYearly = 0L;
 			value.TimeCreditTicksYearly = 0L;
-			_limitServerNotified.TryRemove(userId, out var _);
-			_dailyThresholdsNotified.TryRemove(userId, out ConcurrentDictionary<int, bool> value3);
-			_weeklyThresholdsNotified.TryRemove(userId, out value3);
-			_monthlyThresholdsNotified.TryRemove(userId, out value3);
-			_yearlyThresholdsNotified.TryRemove(userId, out value3);
+			_limitServerNotified.TryRemove(userId2, out var _);
+			_dailyThresholdsNotified.TryRemove(userId2, out ConcurrentDictionary<int, bool> value3);
+			_weeklyThresholdsNotified.TryRemove(userId2, out value3);
+			_monthlyThresholdsNotified.TryRemove(userId2, out value3);
+			_yearlyThresholdsNotified.TryRemove(userId2, out value3);
 			SaveWatchTimeDataImmediate();
 		}
 	}
 
 	public static void DeleteUserData(string userId)
 	{
+		if (string.IsNullOrWhiteSpace(userId))
+		{
+			return;
+		}
 		_userWatchData.TryRemove(userId, out UserWatchData _);
 		_limitServerNotified.TryRemove(userId, out var _);
 		_dailyThresholdsNotified.TryRemove(userId, out ConcurrentDictionary<int, bool> value3);
@@ -875,11 +963,7 @@ public static class WatchTimeManager
 		_monthlyThresholdsNotified.TryRemove(userId, out value3);
 		_yearlyThresholdsNotified.TryRemove(userId, out value3);
 		SaveWatchTimeDataImmediate();
-		ILogger? logger = _logger;
-		if (logger != null)
-		{
-			logger.Info("[WatchTimeManager] Deleted watch data for user " + userId + ".", Array.Empty<object>());
-		}
+		_logger?.Info("[WatchTimeManager] Deleted watch time data for user " + LogSanitizer.Clean(userId) + ".", Array.Empty<object>());
 	}
 
 	public static void ResetAllWatchTimes()
@@ -923,6 +1007,23 @@ public static class WatchTimeManager
 		return string.Join(" and ", list);
 	}
 
+	private static void QuarantineCorruptFile()
+	{
+		try
+		{
+			if (!string.IsNullOrEmpty(_watchTimeDataPath) && File.Exists(_watchTimeDataPath))
+			{
+				string destFileName = _watchTimeDataPath + ".corrupt-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+				File.Move(_watchTimeDataPath, destFileName);
+				_logger?.Error("[WatchTimeManager] The watch time data file could not be read; it was moved aside to " + Path.GetFileName(destFileName) + " and counting starts from zero.", Array.Empty<object>());
+			}
+		}
+		catch (Exception ex)
+		{
+			_logger?.ErrorException("[WatchTimeManager] Could not move the unreadable watch time data file aside.", ex, Array.Empty<object>());
+		}
+	}
+
 	private static void LoadWatchTimeData()
 	{
 		if (_jsonSerializer == null || string.IsNullOrEmpty(_watchTimeDataPath) || !File.Exists(_watchTimeDataPath))
@@ -933,33 +1034,44 @@ public static class WatchTimeManager
 		{
 			string text = File.ReadAllText(_watchTimeDataPath);
 			WatchTimePersistenceData watchTimePersistenceData = _jsonSerializer.DeserializeFromString<WatchTimePersistenceData>(text);
-			if (watchTimePersistenceData == null)
+			if (watchTimePersistenceData?.UserWatchTimes == null)
 			{
+				QuarantineCorruptFile();
 				return;
 			}
-			_userWatchData = new ConcurrentDictionary<string, UserWatchData>();
+			ConcurrentDictionary<string, UserWatchData> concurrentDictionary = new ConcurrentDictionary<string, UserWatchData>(StringComparer.OrdinalIgnoreCase);
 			foreach (UserWatchData userWatchTime in watchTimePersistenceData.UserWatchTimes)
 			{
+				if (userWatchTime == null || string.IsNullOrWhiteSpace(userWatchTime.UserId) || userWatchTime.UserId.Length > LogSanitizer.MaxNameLength || concurrentDictionary.Count >= 1000)
+				{
+					continue;
+				}
 				userWatchTime.LastDailyReset = DateTime.SpecifyKind(userWatchTime.LastDailyReset, DateTimeKind.Utc);
 				userWatchTime.LastWeeklyReset = DateTime.SpecifyKind(userWatchTime.LastWeeklyReset, DateTimeKind.Utc);
 				userWatchTime.LastMonthlyReset = DateTime.SpecifyKind(userWatchTime.LastMonthlyReset, DateTimeKind.Utc);
 				userWatchTime.LastYearlyReset = DateTime.SpecifyKind(userWatchTime.LastYearlyReset, DateTimeKind.Utc);
 				userWatchTime.TimeOutUntil = DateTime.SpecifyKind(userWatchTime.TimeOutUntil, DateTimeKind.Utc);
+				userWatchTime.WatchedTimeTicksDaily = Math.Max(0L, userWatchTime.WatchedTimeTicksDaily);
+				userWatchTime.WatchedTimeTicksWeekly = Math.Max(0L, userWatchTime.WatchedTimeTicksWeekly);
+				userWatchTime.WatchedTimeTicksMonthly = Math.Max(0L, userWatchTime.WatchedTimeTicksMonthly);
+				userWatchTime.WatchedTimeTicksYearly = Math.Max(0L, userWatchTime.WatchedTimeTicksYearly);
+				userWatchTime.TimeCreditTicksDaily = Math.Clamp(userWatchTime.TimeCreditTicksDaily, 0L, MaxCreditTicks);
+				userWatchTime.TimeCreditTicksWeekly = Math.Clamp(userWatchTime.TimeCreditTicksWeekly, 0L, MaxCreditTicks);
+				userWatchTime.TimeCreditTicksMonthly = Math.Clamp(userWatchTime.TimeCreditTicksMonthly, 0L, MaxCreditTicks);
+				userWatchTime.TimeCreditTicksYearly = Math.Clamp(userWatchTime.TimeCreditTicksYearly, 0L, MaxCreditTicks);
 				if (userWatchTime.WatchedTimeTicks > 0 && userWatchTime.WatchedTimeTicksDaily == 0)
 				{
 					userWatchTime.WatchedTimeTicksDaily = userWatchTime.WatchedTimeTicks;
 					userWatchTime.LastDailyReset = DateTime.SpecifyKind(userWatchTime.LastResetTime, DateTimeKind.Utc);
 				}
-				_userWatchData.TryAdd(userWatchTime.UserId, userWatchTime);
+				concurrentDictionary.TryAdd(userWatchTime.UserId, userWatchTime);
 			}
+			_userWatchData = concurrentDictionary;
 		}
 		catch (Exception ex)
 		{
-			ILogger? logger = _logger;
-			if (logger != null)
-			{
-				logger.ErrorException("[WatchTimeManager] Error loading watch time data.", ex, Array.Empty<object>());
-			}
+			_logger?.ErrorException("[WatchTimeManager] Error loading watch time data.", ex, Array.Empty<object>());
+			QuarantineCorruptFile();
 		}
 	}
 

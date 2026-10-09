@@ -76,10 +76,19 @@ public static class LogManager
 		Save();
 	}
 
+	private static void SanitizeEntry(LogEntry entry)
+	{
+		entry.EventType = LogSanitizer.Clean(entry.EventType, 40);
+		entry.Username = LogSanitizer.Clean(entry.Username, 100);
+		entry.ClientName = LogSanitizer.Clean(entry.ClientName, 200);
+		entry.Message = LogSanitizer.Clean(entry.Message, 200);
+	}
+
 	private static void AddEntry(LogEntry entry)
 	{
 		lock (_lock)
 		{
+			SanitizeEntry(entry);
 			_entries.Add(entry);
 			if (_entries.Count > 200)
 			{
@@ -107,7 +116,8 @@ public static class LogManager
 			{
 				lock (_lock)
 				{
-					_entries = logPersistenceData.Entries;
+					_entries = logPersistenceData.Entries.Where((LogEntry e) => e != null).Take(MaxEntries).ToList();
+					_entries.ForEach(SanitizeEntry);
 					return;
 				}
 			}

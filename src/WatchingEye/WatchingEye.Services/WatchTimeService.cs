@@ -8,12 +8,17 @@ namespace WatchingEye.Services;
 
 public class WatchTimeService : IService
 {
+	private static void ThrowIfError(string? error)
+	{
+		if (error != null)
+		{
+			throw new ArgumentException(error);
+		}
+	}
+
 	public void Post(ExtendTimeRequest request)
 	{
-		if (!string.IsNullOrEmpty(request.UserId) && request.Minutes > 0)
-		{
-			WatchTimeManager.ExtendTimeForUser(request.UserId, request.Minutes);
-		}
+		ThrowIfError(WatchTimeManager.ExtendTimeForUser(request.UserId, request.Minutes));
 	}
 
 	public object Get(GetLimitedUsersStatusRequest request)
@@ -31,7 +36,7 @@ public class WatchTimeService : IService
 		PluginConfiguration configuration = ((BasePlugin<PluginConfiguration>)(object)instance).Configuration;
 		if (configuration != null && !string.IsNullOrEmpty(request.UserId))
 		{
-			LimitedUser limitedUser = configuration.LimitedUsers.FirstOrDefault((LimitedUser u) => u.UserId == request.UserId);
+			LimitedUser limitedUser = configuration.LimitedUsers.FirstOrDefault((LimitedUser u) => string.Equals(u.UserId, request.UserId, StringComparison.OrdinalIgnoreCase));
 			if (limitedUser != null)
 			{
 				limitedUser.IsEnabled = !limitedUser.IsEnabled;
@@ -67,18 +72,12 @@ public class WatchTimeService : IService
 
 	public void Post(ExtendPeriodTimeRequest request)
 	{
-		if (!string.IsNullOrEmpty(request.UserId) && !string.IsNullOrEmpty(request.Period) && request.Minutes > 0)
-		{
-			WatchTimeManager.ExtendPeriodTimeForUser(request.UserId, request.Period, request.Minutes);
-		}
+		ThrowIfError(WatchTimeManager.ExtendPeriodTimeForUser(request.UserId, request.Period, request.Minutes));
 	}
 
 	public void Post(ResetPeriodTimeRequest request)
 	{
-		if (!string.IsNullOrEmpty(request.UserId) && !string.IsNullOrEmpty(request.Period))
-		{
-			WatchTimeManager.ResetPeriodTimeForUser(request.UserId, request.Period);
-		}
+		ThrowIfError(WatchTimeManager.ResetPeriodTimeForUser(request.UserId, request.Period));
 	}
 
 	public void Post(ResetUserTimeRequest request)

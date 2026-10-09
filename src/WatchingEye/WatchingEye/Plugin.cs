@@ -5,7 +5,6 @@ using System.Linq;
 using System.Reflection;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
-using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Notifications;
 using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Controller.Session;
@@ -28,8 +27,6 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 
 	private readonly INotificationManager _notificationManager;
 
-	private readonly ILibraryManager _libraryManager;
-
 	public static Plugin? Instance { get; private set; }
 
 	public override string Name => "Watching Eye";
@@ -40,7 +37,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 
 	public ImageFormat ThumbImageFormat => (ImageFormat)2;
 
-	public Plugin(IApplicationPaths appPaths, IXmlSerializer xmlSerializer, ISessionManager sessionManager, ILogManager logManager, IJsonSerializer jsonSerializer, INotificationManager notificationManager, ILibraryManager libraryManager)
+	public Plugin(IApplicationPaths appPaths, IXmlSerializer xmlSerializer, ISessionManager sessionManager, ILogManager logManager, IJsonSerializer jsonSerializer, INotificationManager notificationManager)
 		: base(appPaths, xmlSerializer)
 	{
 		Instance = this;
@@ -49,7 +46,6 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 		_jsonSerializer = jsonSerializer;
 		_appPaths = appPaths;
 		_notificationManager = notificationManager;
-		_libraryManager = libraryManager;
 	}
 
 	public override void UpdateConfiguration(BasePluginConfiguration configuration)
@@ -81,7 +77,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 	public void Run()
 	{
 		InAppNotificationService.Start(_logger, _sessionManager);
-		PlaybackMonitor.Start(_sessionManager, _logger, _libraryManager);
+		PlaybackMonitor.Start(_sessionManager, _logger);
 		WatchTimeManager.Start(_sessionManager, _logger, _appPaths, _jsonSerializer);
 		LogManager.Start(_logger, _jsonSerializer, _appPaths);
 		ServerNotificationService.Start(_logger, _notificationManager);

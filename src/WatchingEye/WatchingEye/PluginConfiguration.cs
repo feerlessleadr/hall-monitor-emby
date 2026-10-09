@@ -26,11 +26,9 @@ public class PluginConfiguration : BasePluginConfiguration
 
 	public bool EnablePublicApi { get; set; } = false;
 
-	public List<LibraryTimeRestriction> LibraryTimeRestrictions { get; set; } = new List<LibraryTimeRestriction>();
 
 	public PluginConfiguration()
 	{
 		LimitedUsers = new List<LimitedUser>();
-		LibraryTimeRestrictions = new List<LibraryTimeRestriction>();
 	}
 }

@@ -52,9 +52,9 @@
                 <div class="listItem" style="display:flex; align-items: center; padding: 0.8em 0;">
                      <i class="md-icon" style="color:#52B54B; margin-right: 1em;">${icon}</i>
                      <div class="listItemBody">
-                         <h3 class="listItemTitle">${entry.EventType} - ${entry.Username || 'Unknown User'}</h3>
-                         <div class="listItemText">${entry.Message}</div>
-                         <div class="listItemText secondary">${eventDate} on ${entry.ClientName || 'Unknown Client'}</div>
+                         <h3 class="listItemTitle">${esc(entry.EventType)} - ${esc(entry.Username || 'Unknown User')}</h3>
+                         <div class="listItemText">${esc(entry.Message)}</div>
+                         <div class="listItemText secondary">${eventDate} on ${esc(entry.ClientName || 'Unknown Client')}</div>
                      </div>
                 </div>
             `;
@@ -73,11 +73,19 @@
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     }
 
-    function generateGuid() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
+    function esc(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function generateApiKey() {
+        const bytes = new Uint8Array(32);
+        window.crypto.getRandomValues(bytes);
+        return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
     }
 
 
@@ -125,8 +133,13 @@
             });
 
             view.querySelector('#btnGenerateApiKey').addEventListener('click', () => {
-                this.view.querySelector('#txtApiKey').value = generateGuid();
+                this.view.querySelector('#txtApiKey').value = generateApiKey();
                 toast('New API Key generated. Click Save to apply.');
+            });
+
+            view.querySelector('#btnClearApiKey').addEventListener('click', () => {
+                this.view.querySelector('#txtApiKey').value = '';
+                toast('API key cleared. Click Save to apply.');
             });
 
             view.querySelector('#btnResetAll').addEventListener('click', () => {
@@ -383,9 +396,9 @@
                     periodRowsHtml = periodRows.map(r => `
                         <div style="display: flex; align-items: center; gap: 0.4em; margin-top: 0.4em; flex-wrap: wrap;">
                             <span class="listItemText" style="min-width: 220px;">${r.label}: <strong>${r.value}</strong></span>
-                            <input is="emby-input" type="number" class="extendPeriodMinutes" placeholder="Mins" value="30" style="width: 70px;" data-userid="${user.UserId}" data-period="${r.period}" />
-                            <button is="emby-button" type="button" class="raised mini btnExtendPeriod" data-userid="${user.UserId}" data-period="${r.period}"><span>Extend</span></button>
-                            <button is="emby-button" type="button" class="raised mini button-cancel btnResetPeriod" data-userid="${user.UserId}" data-period="${r.period}"><span>Reset</span></button>
+                            <input is="emby-input" type="number" class="extendPeriodMinutes" placeholder="Mins" value="30" style="width: 70px;" data-userid="${esc(user.UserId)}" data-period="${r.period}" />
+                            <button is="emby-button" type="button" class="raised mini btnExtendPeriod" data-userid="${esc(user.UserId)}" data-period="${r.period}"><span>Extend</span></button>
+                            <button is="emby-button" type="button" class="raised mini button-cancel btnResetPeriod" data-userid="${esc(user.UserId)}" data-period="${r.period}"><span>Reset</span></button>
                         </div>`).join('');
                 }
             }
@@ -405,31 +418,31 @@
             return `
             <div class="listItem ${disabledClass}" style="display:flex; align-items: flex-start; padding: 0.5em 0;">
                 <div class="listItemBody" style="flex-grow: 1;">
-                    <h3 class="listItemTitle">${user.Username}${statusText}</h3>
+                    <h3 class="listItemTitle">${esc(user.Username)}${statusText}</h3>
                     ${timeOutHtml}
                     ${periodRowsHtml || `<div class="listItemText secondary">${remainingTimeText}</div>`}
                     <div class="listItemText">${timeWindowText}</div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.5em; margin-left: 1em; flex-wrap: wrap; justify-content: flex-end;">
-                    <input is="emby-input" type="number" class="timeOutMinutes" placeholder="Mins" value="15" style="width: 80px;" data-userid="${user.UserId}" />
-                    <button is="emby-button" type="button" class="raised mini button-cancel btnTimeOutUser" data-userid="${user.UserId}" title="Time-out User">
+                    <input is="emby-input" type="number" class="timeOutMinutes" placeholder="Mins" value="15" style="width: 80px;" data-userid="${esc(user.UserId)}" />
+                    <button is="emby-button" type="button" class="raised mini button-cancel btnTimeOutUser" data-userid="${esc(user.UserId)}" title="Time-out User">
                         <span>Time-Out</span>
                     </button>
                     ${isTimedOut ? `
-                    <button is="emby-button" type="button" class="raised mini button-accent btnClearTimeOut" data-userid="${user.UserId}" title="Clear Time-Out">
+                    <button is="emby-button" type="button" class="raised mini button-accent btnClearTimeOut" data-userid="${esc(user.UserId)}" title="Clear Time-Out">
                         <span>Clear TO</span>
                     </button>
                     ` : ''}
-                    <button is="emby-button" type="button" class="fab mini raised paper-icon-button-light btnResetUser" data-userid="${user.UserId}" title="Reset All Time">
+                    <button is="emby-button" type="button" class="fab mini raised paper-icon-button-light btnResetUser" data-userid="${esc(user.UserId)}" title="Reset All Time">
                         <i class="md-icon">refresh</i>
                     </button>
-                    <button is="emby-button" type="button" class="fab mini raised paper-icon-button-light btnEditUser" data-userid="${user.UserId}" title="Edit Limit">
+                    <button is="emby-button" type="button" class="fab mini raised paper-icon-button-light btnEditUser" data-userid="${esc(user.UserId)}" title="Edit Limit">
                         <i class="md-icon">edit</i>
                     </button>
-                    <button is="emby-button" type="button" class="fab mini raised paper-icon-button-light btnToggleUserLimit" data-userid="${user.UserId}" title="${toggleTitle}">
+                    <button is="emby-button" type="button" class="fab mini raised paper-icon-button-light btnToggleUserLimit" data-userid="${esc(user.UserId)}" title="${toggleTitle}">
                         <i class="md-icon">${toggleIcon}</i>
                     </button>
-                    <button is="emby-button" type="button" class="fab mini raised paper-icon-button-light btnRemoveUser" data-userid="${user.UserId}" title="Remove User">
+                    <button is="emby-button" type="button" class="fab mini raised paper-icon-button-light btnRemoveUser" data-userid="${esc(user.UserId)}" title="Remove User">
                         <i class="md-icon">delete</i>
                     </button>
                 </div>
@@ -442,12 +455,12 @@
             let userSelectHtml = '';
             if (isNew) {
                 if (availableUsers.length > 0) {
-                    userSelectHtml = `<select is="emby-select" id="selectUser" class="edit-user-select" label="Select User:" required>${availableUsers.map(u => `<option value="${u.Id}" data-username="${u.Name}">${u.Name}</option>`).join('')}</select>`;
+                    userSelectHtml = `<select is="emby-select" id="selectUser" class="edit-user-select" label="Select User:" required>${availableUsers.map(u => `<option value="${esc(u.Id)}" data-username="${esc(u.Name)}">${esc(u.Name)}</option>`).join('')}</select>`;
                 } else {
                     userSelectHtml = '<p>No more users available to add.</p>';
                 }
             } else {
-                userSelectHtml = `<input is="emby-input" id="txtUsername" type="text" label="User:" value="${user.Username}" readonly />`;
+                userSelectHtml = `<input is="emby-input" id="txtUsername" type="text" label="User:" value="${esc(user.Username)}" readonly />`;
             }
 
             const timeOptions = Array.from({ length: 48 }, (_, i) => `<option value="${i / 2}">${String(Math.floor(i / 2)).padStart(2, '0')}:${String((i % 2) * 30).padStart(2, '0')}</option>`).join('');
@@ -489,8 +502,8 @@
 
 
             return `
-            <div class="user-editor" data-userid="${user.UserId}">
-                <h3>${isNew ? 'Add New Limited User' : 'Editing: ' + user.Username}</h3>
+            <div class="user-editor" data-userid="${esc(user.UserId)}">
+                <h3>${isNew ? 'Add New Limited User' : 'Editing: ' + esc(user.Username)}</h3>
                  <div class="inputContainer">${userSelectHtml}</div>
 
                 <div class="emby-tabs-slider" style="margin: 1.5em 0 1em;">
@@ -592,14 +605,14 @@
                         <label><input is="emby-checkbox" type="checkbox" class="edit-enable-threshold-notifications" ${user.EnableThresholdNotifications ? 'checked' : ''} /><span>Enable notifications when nearing a limit</span></label>
                      </div>
                      <div class="inputContainer">
-                        <input is="emby-input" class="edit-notification-thresholds" type="text" label="Notification Thresholds (%):" value="${user.NotificationThresholds || '80,95'}" />
+                        <input is="emby-input" class="edit-notification-thresholds" type="text" label="Notification Thresholds (%):" value="${esc(user.NotificationThresholds || '80,95')}" />
                         <div class="fieldDescription">Comma-separated list of percentages (e.g., 50, 80, 95).</div>
                      </div>
                 </div>
 
                 <div class="user-editor-buttons">
-                   <button is="emby-button" type="button" class="raised button-submit btn-save-user-inline" data-userid="${user.UserId}"><span>Save User</span></button>
-                   <button is="emby-button" type="button" class="raised button-cancel btn-cancel-edit-user" data-userid="${user.UserId}"><span>Cancel</span></button>
+                   <button is="emby-button" type="button" class="raised button-submit btn-save-user-inline" data-userid="${esc(user.UserId)}"><span>Save User</span></button>
+                   <button is="emby-button" type="button" class="raised button-cancel btn-cancel-edit-user" data-userid="${esc(user.UserId)}"><span>Cancel</span></button>
                 </div>
             </div>`;
         }
@@ -664,6 +677,23 @@
                     LimitMinutes: limitMins
                 });
             });
+
+            const limitChecks = [
+                [userData.EnableDailyLimit, userData.DailyLimitMinutes, 1, 1440, 'Daily limit (minutes)'],
+                [userData.EnableWeeklyLimit, userData.WeeklyLimitHours, 1, 168, 'Weekly limit (hours)'],
+                [userData.EnableMonthlyLimit, userData.MonthlyLimitHours, 1, 744, 'Monthly limit (hours)'],
+                [userData.EnableYearlyLimit, userData.YearlyLimitHours, 1, 8784, 'Yearly limit (hours)']
+            ];
+            for (const [enabled, value, min, max, label] of limitChecks) {
+                if (enabled && (!Number.isFinite(value) || value < min || value > max)) {
+                    toast({ type: 'error', text: `${label} must be between ${min} and ${max} when its limit is enabled (0 would mean no limit).` });
+                    return;
+                }
+            }
+            if (userData.EnablePerDayLimits && userData.PerDayLimits.some(d => d.IsEnabled && (d.LimitMinutes < 1 || d.LimitMinutes > 1440))) {
+                toast({ type: 'error', text: 'Per-day limits must be between 1 and 1440 minutes.' });
+                return;
+            }
 
             if (userId === newUserId) {
                 const userSelect = editorContainer.querySelector('.edit-user-select');
@@ -832,7 +862,7 @@
                 if (config.LimitedUsers.length === 0) {
                     container.innerHTML += '<p>No users have been added to the watch time limiter.</p>';
                 } else {
-                    const basicList = config.LimitedUsers.map(user => `<div class="listItem"><div class="listItemBody"><h3 class="listItemTitle">${user.Username}</h3></div></div>`).join('');
+                    const basicList = config.LimitedUsers.map(user => `<div class="listItem"><div class="listItemBody"><h3 class="listItemTitle">${esc(user.Username)}</h3></div></div>`).join('');
                     container.innerHTML += basicList;
                 }
             });

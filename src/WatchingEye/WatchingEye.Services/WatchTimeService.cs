@@ -65,11 +65,6 @@ public class WatchTimeService : IService
 		}
 	}
 
-	public object Get(GetClientListRequest request)
-	{
-		return LogManager.GetDistinctClientNames();
-	}
-
 	public void Post(ExtendPeriodTimeRequest request)
 	{
 		if (!string.IsNullOrEmpty(request.UserId) && !string.IsNullOrEmpty(request.Period) && request.Minutes > 0)

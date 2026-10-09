@@ -96,25 +96,6 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 		InAppNotificationService.Stop();
 	}
 
-	public static bool UpdateUserLimits(string userId, int dailyLimitMinutes, int weeklyLimitHours, int monthlyLimitHours)
-	{
-		if (Instance == null || string.IsNullOrEmpty(userId))
-		{
-			return false;
-		}
-		PluginConfiguration configuration = ((BasePlugin<PluginConfiguration>)(object)Instance).Configuration;
-		LimitedUser limitedUser = configuration.LimitedUsers.FirstOrDefault((LimitedUser u) => u.UserId.Equals(userId, StringComparison.OrdinalIgnoreCase));
-		if (limitedUser == null)
-		{
-			return false;
-		}
-		limitedUser.DailyLimitMinutes = dailyLimitMinutes;
-		limitedUser.WeeklyLimitHours = weeklyLimitHours;
-		limitedUser.MonthlyLimitHours = monthlyLimitHours;
-		((BasePlugin<PluginConfiguration>)(object)Instance).UpdateConfiguration((BasePluginConfiguration)(object)configuration);
-		return true;
-	}
-
 	public Stream GetThumbImage()
 	{
 		Assembly assembly = typeof(Plugin).GetTypeInfo().Assembly;

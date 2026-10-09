@@ -65,18 +65,6 @@ public static class LogManager
 		}
 	}
 
-	public static List<string> GetDistinctClientNames()
-	{
-		lock (_lock)
-		{
-			return (from c in (from e in _entries
-					select e.ClientName into c
-					where !string.IsNullOrEmpty(c)
-					select c).Distinct(StringComparer.OrdinalIgnoreCase)
-				orderby c
-				select c).ToList();
-		}
-	}
 
 	public static void ClearLogs()
 	{

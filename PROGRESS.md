@@ -83,3 +83,8 @@ Reviewed: all C#, the config page (HTML + JS), csproj, embedded logo, NuGet depe
 - Optionally hash the stored API key; optionally add an audit trail for admin actions (extend / reset / time-out).
 - Consider limiting the Public API to specific client addresses.
 - Add the regression suite to CI if the repo gets one.
+
+## 7. GitHub backup
+2026-10-09: pushed to https://github.com/feerlessleadr/watching-eye-emby.git (branch `main` plus the three tags). The pushed history is a rewritten copy of the original local history: all commits are attributed to `feerlessleadr <github@thecgkg.com>` (no work email or username anywhere in metadata, messages or files) and `original/WatchingEye.dll` was removed from every commit (the README keeps its SHA-256).
+The same day this local repository was **switched to the published history** (`origin/main`), so local and GitHub now share the same commit hashes. Local git identity is set to the same author.
+Kept locally only (not published): the pre-switch history as `C:\dev\watching-eye-original-history.bundle` (contains the original DLL and the work email - do not publish), and the original binary at `original/WatchingEye.dll` (ignored by git) with a copy in `C:\dev\watching-eye-original-binary\`.

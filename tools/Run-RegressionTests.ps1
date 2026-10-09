@@ -23,9 +23,10 @@ function Check {
     $tag = if ($Passed) { 'PASS' } else { 'FAIL' }
     Write-Host ("[{0}] {1} {2}" -f $tag, $Name, $Detail)
 }
-function Get-LimitedStatus { param($User) @(Invoke-RestMethod "$($script:Api)/WatchingEye/LimitedUsersStatus" -Headers $script:Admin) | Where-Object { $_.UserId -eq $User.Id } }
+function Get-LimitedStatus { param($User) @(Invoke-RestMethod "$($script:Api)/WatchingEye/LimitedUsersStatus" -Headers $script:Admin) | ForEach-Object { $_ } | Where-Object { $_.UserId -eq $User.Id } | Select-Object -First 1 }
 
 $probe = $null
+$probe2 = $null
 $listener = $null
 $logFile = Join-Path ([IO.Path]::GetTempPath()) ("we-ws-{0}.log" -f [guid]::NewGuid().ToString('N'))
 try {
@@ -94,6 +95,38 @@ try {
     Check 'The refused config was not saved' ((Get-PluginConfig).LimitedUsers[0].DailyLimitMinutes -ge 1)
 
     if (-not $SkipEnforcement) {
+        Write-Host "== Status contract for client apps (about 70 seconds)"
+        $cfg = Get-PluginConfig
+        $cfg.LimitedUsers[0].EnableDailyLimit = $true; $cfg.LimitedUsers[0].DailyLimitMinutes = 60
+        $cfg.LimitedUsers[0].EnablePerDayLimits = $false
+        Save-PluginConfig $cfg
+        $row = Get-LimitedStatus $probe
+        $expectedFields = @('UserId', 'Username', 'DailyLimitMinutes', 'WeeklyLimitHours', 'MonthlyLimitHours', 'YearlyLimitHours', 'SecondsWatchedDaily', 'SecondsWatchedWeekly', 'SecondsWatchedMonthly', 'SecondsWatchedYearly', 'CreditSecondsDaily', 'CreditSecondsWeekly', 'CreditSecondsMonthly', 'CreditSecondsYearly', 'TimeOutUntil', 'EffectiveDailyLimitMinutes', 'IsEnabled')
+        $missing = @($expectedFields | Where-Object { $row.PSObject.Properties.Name -notcontains $_ })
+        Check 'Status contains every field the Android app reads plus the new ones' ($missing.Count -eq 0) "missing=[$($missing -join ',')]"
+        Check 'Effective daily limit equals the daily limit' ($row.EffectiveDailyLimitMinutes -eq 60) "value=$($row.EffectiveDailyLimitMinutes)"
+        $cfg = Get-PluginConfig
+        $today = (Get-Date).DayOfWeek.ToString()
+        $cfg.LimitedUsers[0].EnablePerDayLimits = $true
+        $cfg.LimitedUsers[0].PerDayLimits = @([pscustomobject]@{ Day = $today; IsEnabled = $true; LimitMinutes = 30 })
+        Save-PluginConfig $cfg
+        Check 'Effective daily limit honours today''s per-day override' ((Get-LimitedStatus $probe).EffectiveDailyLimitMinutes -eq 30) "value=$((Get-LimitedStatus $probe).EffectiveDailyLimitMinutes)"
+        $cfg = Get-PluginConfig; $cfg.LimitedUsers[0].EnablePerDayLimits = $false; $cfg.LimitedUsers[0].PerDayLimits = @(); Save-PluginConfig $cfg
+
+        $probe2 = New-ProbeUser -Name "O'Brien & Co" -DeviceId 'we-regression-3'
+        $cfg = Get-PluginConfig
+        $cfg | Add-Member -NotePropertyName LimitedUsers -NotePropertyValue @($cfg.LimitedUsers[0], (New-LimitedUserEntry -User $probe2 -DailyMinutes 60)) -Force
+        Save-PluginConfig $cfg
+        Check 'User names with quotes and ampersands are kept exactly' ((Get-LimitedStatus $probe2).Username -eq "O'Brien & Co") "reported=[$((Get-LimitedStatus $probe2).Username)]"
+
+        Get-Status 'POST' '/WatchingEye/TimeOutUser' $script:Admin @{ UserId = $probe.Id; Minutes = 1 } | Out-Null
+        Check 'An active time-out is reported' (([datetimeoffset](Get-LimitedStatus $probe).TimeOutUntil).UtcDateTime -gt [datetime]::UtcNow)
+        Start-Sleep 65
+        $expired = (Get-LimitedStatus $probe).TimeOutUntil
+        Check 'An expired time-out is reported as none (0001-01-01)' (([datetime]$expired).Year -eq 1) "TimeOutUntil=$expired"
+    }
+
+    if (-not $SkipEnforcement) {
         Write-Host "== Enforcement (about 90 seconds)"
         $cfg = Get-PluginConfig; $cfg.LimitedUsers[0].ResetTimeOfDayHours = 3.0; $cfg.LimitedUsers[0].DailyLimitMinutes = 1
         $cfg.TimeOutMessageText = 'Test time-out. Playback is disabled until {end_time}.'; Save-PluginConfig $cfg
@@ -151,6 +184,8 @@ finally {
     if (Test-Path -LiteralPath $logFile) { Remove-Item -LiteralPath $logFile -Force }
     try { if ($probe) { Invoke-RestMethod "$($script:Api)/WatchingEye/DeleteUserData" -Method Post -Headers $script:Admin -ContentType 'application/json' -Body (@{ UserId = $probe.Id } | ConvertTo-Json) | Out-Null } } catch { }
     try { Reset-PluginState } catch { Write-Host "Could not reset plugin state: $($_.Exception.Message)" }
+    foreach ($extra in @($probe2)) { if ($extra) { try { Invoke-RestMethod "$($script:Api)/WatchingEye/DeleteUserData" -Method Post -Headers $script:Admin -ContentType "application/json" -Body (@{ UserId = $extra.Id } | ConvertTo-Json) | Out-Null } catch { } } }
+    Remove-ProbeUser $probe2
     Remove-ProbeUser $probe
 }
 

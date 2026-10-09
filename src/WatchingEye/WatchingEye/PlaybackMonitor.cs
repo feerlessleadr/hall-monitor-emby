@@ -52,7 +52,7 @@ public static class PlaybackMonitor
 			{
 				return;
 			}
-			_logger?.Info($"[PlaybackMonitor] Blocking playback for user '{LogSanitizer.Clean(session.UserName)}' on client '{LogSanitizer.Clean(session.Client)}' - {blockReason}.", Array.Empty<object>());
+			_logger?.Info($"[PlaybackMonitor] Blocking playback for user '{LogSanitizer.CleanText(session.UserName)}' on client '{LogSanitizer.Clean(session.Client)}' - {blockReason}.", Array.Empty<object>());
 			if (_sessionManager != null)
 			{
 				await _sessionManager.SendPlaystateCommand((string)null, session.Id, new PlaystateRequest

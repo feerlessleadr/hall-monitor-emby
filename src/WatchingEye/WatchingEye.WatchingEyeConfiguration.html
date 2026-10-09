@@ -214,7 +214,7 @@
 
                         <h3>GET /WatchingEye/Public/Status</h3>
                         <p>Gets the current watch time status for all users who are configured in the Watch Time Limiter.</p>
-                        <p><strong>Example Response:</strong></p>
+                        <p><strong>Example Response:</strong> (<code>TimeOutUntil</code> is UTC and is <code>0001-01-01T00:00:00Z</code> when no time-out is active or it has expired; <code>EffectiveDailyLimitMinutes</code> is today's daily limit after per-day overrides, 0 when no daily limit applies.)</p>
                         <pre>[
     {
         "UserId": "a1b2c3d4...",
@@ -227,6 +227,12 @@
         "SecondsWatchedWeekly": 14882.1,
         "SecondsWatchedMonthly": 59528.4,
         "SecondsWatchedYearly": 59528.4,
+        "CreditSecondsDaily": 0,
+        "CreditSecondsWeekly": 0,
+        "CreditSecondsMonthly": 0,
+        "CreditSecondsYearly": 0,
+        "EffectiveDailyLimitMinutes": 120,
+        "IsEnabled": true,
         "TimeOutUntil": "0001-01-01T00:00:00Z"
     }
 ]</pre>

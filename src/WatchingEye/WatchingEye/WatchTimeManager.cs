@@ -630,7 +630,7 @@ public static class WatchTimeManager
 		}
 		List<SessionInfo> sessions = _sessionManager.Sessions.Where((SessionInfo s) => string.Equals(s.UserId, userId, StringComparison.OrdinalIgnoreCase) && s.IsActive).ToList();
 		SessionInfo? namedSession = sessions.FirstOrDefault((SessionInfo s) => !string.IsNullOrEmpty(s.UserName));
-		string username = LogSanitizer.Clean((namedSession != null) ? namedSession.UserName : null);
+		string username = LogSanitizer.CleanText((namedSession != null) ? namedSession.UserName : null);
 		if (username.Length == 0)
 		{
 			username = "Unknown";
@@ -720,7 +720,9 @@ public static class WatchTimeManager
 				CreditSecondsWeekly = TimeSpan.FromTicks(orAdd.TimeCreditTicksWeekly).TotalSeconds,
 				CreditSecondsMonthly = TimeSpan.FromTicks(orAdd.TimeCreditTicksMonthly).TotalSeconds,
 				CreditSecondsYearly = TimeSpan.FromTicks(orAdd.TimeCreditTicksYearly).TotalSeconds,
-				TimeOutUntil = orAdd.TimeOutUntil
+				TimeOutUntil = ((orAdd.TimeOutUntil > DateTime.UtcNow) ? orAdd.TimeOutUntil : DateTime.MinValue),
+				EffectiveDailyLimitMinutes = ((limitedUser.EnableDailyLimit || limitedUser.EnablePerDayLimits) ? GetEffectiveDailyLimitMinutes(limitedUser) : 0),
+				IsEnabled = limitedUser.IsEnabled
 			});
 		}
 		return list;

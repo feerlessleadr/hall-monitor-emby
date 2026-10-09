@@ -33,4 +33,10 @@ public class LimitedUserStatus
 	public double CreditSecondsYearly { get; set; }
 
 	public DateTime TimeOutUntil { get; set; }
+
+	/// <summary>Today's effective daily limit in minutes (honours per-day limits; 0 when no daily limit applies).</summary>
+	public int EffectiveDailyLimitMinutes { get; set; }
+
+	/// <summary>False when the user's limit is switched off on the plugin page.</summary>
+	public bool IsEnabled { get; set; } = true;
 }

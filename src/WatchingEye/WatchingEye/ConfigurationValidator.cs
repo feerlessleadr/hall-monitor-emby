@@ -29,7 +29,7 @@ public static class ConfigurationValidator
 			{
 				continue;
 			}
-			string name = LogSanitizer.Clean(string.IsNullOrWhiteSpace(user.Username) ? user.UserId : user.Username);
+			string name = LogSanitizer.CleanText(string.IsNullOrWhiteSpace(user.Username) ? user.UserId : user.Username);
 			if (user.EnableDailyLimit && user.DailyLimitMinutes < 1)
 			{
 				return name + ": the daily limit must be at least 1 minute when it is enabled (0 would mean no limit).";
@@ -86,7 +86,7 @@ public static class ConfigurationValidator
 
 	private static void NormalizeUser(LimitedUser user)
 	{
-		user.Username = LogSanitizer.Clean(user.Username);
+		user.Username = LogSanitizer.CleanText(user.Username);
 		user.DailyLimitMinutes = Math.Clamp(user.DailyLimitMinutes, 0, 1440);
 		user.WeeklyLimitHours = Math.Clamp(user.WeeklyLimitHours, 0, 168);
 		user.MonthlyLimitHours = Math.Clamp(user.MonthlyLimitHours, 0, 744);

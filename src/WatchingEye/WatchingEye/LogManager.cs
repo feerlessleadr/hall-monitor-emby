@@ -79,7 +79,7 @@ public static class LogManager
 	private static void SanitizeEntry(LogEntry entry)
 	{
 		entry.EventType = LogSanitizer.Clean(entry.EventType, 40);
-		entry.Username = LogSanitizer.Clean(entry.Username, 100);
+		entry.Username = LogSanitizer.CleanText(entry.Username, 100);
 		entry.ClientName = LogSanitizer.Clean(entry.ClientName, 200);
 		entry.Message = LogSanitizer.Clean(entry.Message, 200);
 	}

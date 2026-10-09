@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using MediaBrowser.Common.Extensions;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Model.Services;
@@ -59,7 +58,7 @@ public class PublicApiService : IService, IRequiresRequest
 			{
 				if (value.LockedUntil > DateTime.UtcNow)
 				{
-					throw new RateLimitExceededException("Too many failed attempts. Try again later.");
+					throw new SecurityException("Too many failed attempts. Try again later.");
 				}
 			}
 		}

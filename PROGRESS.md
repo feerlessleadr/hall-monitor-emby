@@ -1,104 +1,85 @@
-# PROGRESS
+# PROGRESS - Watching Eye (recovered fork)
 
-## Done
-- [x] Original preserved: `original/WatchingEye.dll` (read-only; identical hash to the source file in the folder root, which is git-ignored).
-- [x] Recon: not obfuscated (clean names, no control-flow mangling). net6.0, AssemblyVersion 1.6.8.0.
-- [x] Decompiled with `ilspycmd -p` -> `src/WatchingEye` (commit 1, untouched output).
-- [x] csproj fixed (commit 2): `MediaBrowser.Server.Core` 4.9.1.90 from NuGet covers all references (Model/Common/Controller 4.9.1.90), so no Emby install DLLs are needed. RootNamespace set, LangVersion latest. **Builds with 0 errors on first try** (1 CS4014 un-awaited-call warning at TranscodeMonitor.cs:348, original fire-and-forget behavior); no async/goto/dynamic fixes were needed.
-- [x] Verified vs original (reflection via MetadataLoadContext, all members incl. non-public): 920-line dumps identical except one compiler-generated lambda name (`<Start>b__9_0` vs `b__10_0`). Same 3 embedded resources with identical byte sizes, same GUID, name, version.
-- [x] Cleanup commits: removed `//IL_xxxx` comments; renamed decompiler-style locals.
+Living log for this fork. Sections: current state, decision log, issues and workarounds, test history, backlog.
+Detailed change history is in the git log (every behaviour change is its own commit).
+Last updated: 2026-10-09.
 
-## Left / ideas
-- Not yet test-loaded into a real Emby server (build-level equivalence only).
-- Remaining decompiler style: `((BasePlugin<PluginConfiguration>)(object)Instance).Configuration` casts and `Array.Empty<object>()` logger args; harmless, left as is.
-- Behavior changes: none made. Awaiting your direction.
+## 1. Current state
 
-## Findings / flags
-1. **No outbound network calls, telemetry, license checks or obfuscated blobs.** No HttpClient/WebClient/Process/Assembly.Load/Base64 anywhere; the only URL strings are docs text in the config page.
-2. **`ExternalWebServer` is dead code.** It would open an `HttpListener` on `http://*:{port}/` with a password login and token API (`/api/login`, `/api/extend`, ...), but nothing instantiates it and the `WatchingEye.Web.*` resources it serves don't exist. Left in for fidelity; a candidate for removal (your call).
-3. **Admin routes have no auth attribute.** `WatchTimeService` routes (`/WatchingEye/ExtendTime`, `TimeOutUser`, `ResetUserTime`, `ClearLogs`, `DeleteUserData`, ...) carry no `[Authenticated(Roles="Admin")]`. Emby's default then lets any authenticated user call them, so a limited user's own token could extend their time. Worth verifying and fixing; this is a behavior change so I have not touched it.
-4. Public API uses a shared key in `X-WatchingEye-Api-Key`, compared with plain `string.Equals` (not constant-time); disabled when the key is blank. Key is stored in plugin config.
+**What it is:** an Emby Server plugin (Emby 4.9/4.10, net6.0) that limits how long selected users can watch.
+Recovered by decompiling the original `WatchingEye.dll` v1.6.8.0 (original author unknown; GitHub repo deleted).
+Plugin GUID `e8c3b1b3-4f56-4f38-a28a-2e6c5a043007` and name "Watching Eye" are unchanged, so Emby treats it as the same plugin.
 
-## What the plugin does
-**Watch-time limiter** (`WatchTimeManager`): timer-driven tracking of per-user watch ticks (daily/weekly/monthly/yearly), limits per user plus a global rule set, allowed time-of-day windows, per-day overrides, per-library time restrictions, time credits ("extend"), manual time-outs, optional daily/weekly/monthly/yearly auto-reset, threshold notifications (% used), excluded users/clients/libraries. When exceeded: stops playback and shows an in-app message. State in `WatchingEye.WatchTime.json` (plugin configurations dir; atomic temp+replace writes).
-**Transcode monitor** (`TranscodeMonitor`, 30 s session check): in-client messages when transcoding (reason parsed into client-limitation vs bandwidth-limitation text), optional direct-play and playback-start messages, blocking by source container (default mkv,ts,avi), by max transcode resolution, by concurrent transcode count, stopping audio/video transcodes, paused-stream timeout. Optional confirmation button on each message type.
-**Other**: Event log (`LogManager`, persisted JSON, viewable/clearable from config page), server notifications through Emby's notification manager (limit reached, thresholds), config page + logo embedded.
-**Scheduled tasks**: none (internal `Timer`s only; no `IScheduledTask`).
-**Routes** (`/WatchingEye/...`): ExtendTime, LimitedUsersStatus, ToggleUserLimit, ResetUserTime, ResetAllUsersTime, GetLogEvents, ClearLogs, TimeOutUser, ClearTimeOut, GetClientList, DeleteUserData, ExtendPeriodTime, ResetPeriodTime; API-key protected: `Public/Status` (GET), `Public/ExtendTime`, `Public/TimeOutUser`, `Public/ClearTimeOut`, `Public/ResetUserTime` (POST). Documented in the config page's "External API Guide".
-**Config** (`PluginConfiguration`, saved as `WatchingEye.xml`): ~50 options, grouped as on the config page (transcode notification/blocking, resolution, concurrency, direct play, playback start, paused timeout, message texts, confirmation buttons, exclusions, limiter + `LimitedUsers`, `GlobalLimitedUser`, `LibraryTimeRestrictions`, `ApiKey`, `EnablePublicApi`). Property names are serialized, do not rename.
+**What it does now**
+- Per-user limits (only users listed under *Limited Users* are ever affected): daily / weekly / monthly / yearly caps, per-day limits, allowed time windows, resets, threshold warnings.
+- Extra time ("Extend") per user or per period; time-outs (stop and block until a local date/time).
+- Stops playback when a limit is reached (Stop command + message) and blocks new playback while over limit / timed out / outside the window.
+- Event log, optional server notifications, optional API-key control (`/WatchingEye/Public/*`).
+- Enabled limits of 0 are rejected on save (HTTP 400 / UI message); 0 never means "unlimited".
 
-## Verification tooling
-Throwaway MetadataLoadContext dumper lived in the session scratchpad (not in repo). Re-do the diff by dumping all members of the original and rebuilt DLLs and diffing.
+**Removed from the original** (all at the user's request unless noted): transcode warnings/blocking/direct-play messages, playback-start message, paused-stream timeout, global rules, exclusions (users/clients/libraries), library time restrictions, dead code (embedded web server, duplicate notification service, unused routes).
 
-## Test run on Emby 4.10.1.0 (unmodified rebuild, 2026-10-08)
-Rebuilt Release DLL copied to the test server's `programdata/plugins`. Results:
-- PASS: loads, registered via `/Plugins` as Watching Eye 1.6.8.0 / GUID e8c3b1b3-..., entry point starts, no errors. (Built against 4.9.1.90, runs on 4.10.1.0 / .NET 8.)
-- PASS: embedded config page + js served; anonymous calls to plugin routes -> 401.
-- PASS: limiter, using a simulated client (Sessions/Playing + Progress reports) with a 1-minute daily limit. Watch time accrues at 15 s per tick, `LimitReached` event logged at ~60 s, shows in `GetLogEvents`. Config backup/restore through the Plugins API works.
-- NOT TESTED: config page UI rendering/saving in a browser, transcode warnings/blocking, in-client messages (the simulated client has no websocket, so message delivery and the actual stop command were not observed).
-- **CONFIRMED vulnerability (finding 3):** a freshly created non-admin user's token got 200/204 on `LimitedUsersStatus`, `GetLogEvents`, `GetClientList`, `ExtendTime`, `TimeOutUser`, `ClearTimeOut` and `ClearLogs`, while Emby's own `/Plugins` returned 403 for that user. The probe's `ExtendTime` really granted a 300 s credit (which is why the first enforcement run didn't stop). Fix = `[Authenticated(Roles = "Admin")]` on the non-public request classes; not applied (behavior change, awaiting approval).
-- Test hygiene: probe user deleted, plugin config restored to defaults, plugin log cleared. Plugin left installed on the test server.
+**Build:** `dotnet build src/WatchingEye -c Release` -> `src/WatchingEye/bin/Release/net6.0/WatchingEye.dll`; copy that one file to Emby's `plugins` folder and restart. Dependency: NuGet `MediaBrowser.Server.Core` 4.9.1.90 (no Emby DLLs needed).
+**Tags:** `v1.6.8.0-recovered` (faithful rebuild), `v1.6.8.0-watchtime-only`, `v1.6.8.0-hardened`.
+**Status:** 34/34 regression checks pass on Emby 4.10.1.0 (`tools/Run-RegressionTests.ps1`, see `TESTING.md`). Not yet installed on the user's real server.
 
-## Fix applied: admin-only routes (approved by user)
-Added `[Authenticated(Roles = "Admin")]` to the 13 non-public request classes in `WatchingEye.Services`. Re-tested on Emby 4.10.1.0 with a fresh non-admin user: all 13 routes -> 403; admin (API key) -> 200/204. `Public/*` routes unchanged (API-key auth). Note: `Public/Status` called with a non-matching/absent key as a logged-in user returns 500 (it throws UnauthorizedAccessException, which Emby maps to 500); this is pre-existing behavior, not changed.
+## 2. Decision log
 
-## Remaining tests completed (Emby 4.10.1.0, build with admin-route fix)
-- PASS save from config page: toggled a setting in the dashboard UI, "Settings saved." toast, value persisted in `WatchingEye.xml` and via the plugin Configuration API.
-- PASS message + stop delivery over a real websocket client: 50% threshold warning (`DisplayMessage`) at 30 s, then at the 60 s limit `Playstate: Stop` + "Time Limit Reached" `DisplayMessage`; the Stop is re-sent every 15 s while the client keeps reporting playback.
-- PASS direct-play and playback-start messages delivered.
-- PASS transcode warning with a **real client** (Emby Web in the app browser, 720p MPEG-4 MKV forced to transcode by Chromium): event "Transcode started: the video format is not supported" logged and the "Transcode Warning" dialog displayed with the configured text.
-- PASS transcode blocking decision (`EnableTranscodeBlocking`, mkv in the blocklist): server log "Blocking transcode ... Source format 'mkv' is on the blocklist"; the "Playback Blocked" `DisplayMessage` and `Playstate: Stop` were delivered to the client's websocket (captured in the page). **Caveat:** the in-pane Emby Web player did not act on the Stop (nor on Emby's own `Sessions/{id}/Playing/Stop`), so end-to-end "playback actually stops" was not observed for web; the plugin side is verified. Stop is only a request to the client; a hardening idea is also killing the transcode/session server-side.
-- NOT TESTED: resolution blocking, concurrent-transcode limit, paused-stream timeout, library time restrictions, time windows, external Public API with a real key.
+| Date | Decision | By | Why / notes |
+|------|----------|----|-------------|
+| 10-08 | Keep original DLL untouched in `original/`; commit raw decompile first | user's brief | Lets anyone diff raw decompile vs. later changes |
+| 10-08 | Use NuGet `MediaBrowser.Server.Core` 4.9.1.90 instead of Emby install DLLs | assistant | Exact version match; builds with 0 errors; nothing copied from the server |
+| 10-08 | Rebuilt DLL verified against original: same types/members/resources/GUID | assistant | Only compiler-generated lambda names differ |
+| 10-08 | Admin-only routes (`[Authenticated(Roles="Admin")]` on 12 routes) | user approved | Any logged-in user could extend time / clear logs |
+| 10-08 | Remove transcode features | user | Only watch-time limiting matters |
+| 10-08 | Remove playback-start message + paused-stream timeout | user | Not about watch time |
+| 10-08 | Time-out message shows local end date/time (`{end_time}`) | user | Server local time; `{duration}` still works |
+| 10-08 | Remove global rules; only listed users are affected | user | Rules are applied per account |
+| 10-08 | Remove exclusions; time-out refuses unlisted users | user | Exclusions redundant; unenforceable time-outs were misleading |
+| 10-08 | Time-out also refuses when the limiter is disabled | assistant | Same reason: it could not be enforced |
+| 10-09 | Remove library restrictions | user | Only per-user watch time, extra time and time-outs wanted |
+| 10-09 | Remove dead code | user | Embedded web server was never started |
+| 10-09 | Security hardening (see section 5) | user: "make all fixes" | After full review |
+| 10-09 | Chosen limits: minutes 1..43200 per request, credit cap 10 years, API lockout 5 failures/5 min -> 5 min, save every 60 s | assistant | Conservative defaults; easy to change |
+| 10-09 | Enabled limit of 0 is rejected (option 2) | user | A blank field must not silently disable a limit |
+| 10-09 | Kept legacy data migration (`WatchedTimeTicks` -> daily) in the loader | assistant | Harmless; only matters when upgrading very old data files |
 
-### Fragility found (original behavior, unchanged)
-`TranscodeMonitor.HandleMediaStatusNotification` checks `session.TranscodingInfo == null` at the instant playback-start is reported and, if null, treats the stream as direct play and returns without re-checking (the `InitialDelaySeconds` wait only happens when TI is already non-null). Scripted clients that report start before Emby attaches TranscodingInfo get no warning (or a false "Direct Play" message); real Emby Web attached it in time. Candidate improvement: re-read the session after the delay before deciding. Behavior change, not applied.
+## 3. Issues and workarounds log
 
-### Test hygiene
-Probe users deleted, plugin config restored to defaults, plugin log and orphan watch-time data cleared, generated 288 MB test clip removed from `C:\claude\Movies` and library refreshed, helper websocket process stopped. Plugin and server left running.
+| Issue | Cause / workaround |
+|-------|--------------------|
+| PowerShell scripts blocked | Execution policy. Run with `powershell -ExecutionPolicy Bypass -File ...` (process-only, changes no setting) |
+| A path guard rejected a script containing single-letter string arguments | Use descriptive ids (e.g. `'phase1'`, not `'a'`) and `-LiteralPath` |
+| Variables clobbered (`$s` overwrote `$S`) | PowerShell variables are case-insensitive; use distinct names |
+| Multi-line `sed` inserts corrupted code (twice) | Use the editor tool or here-doc files for multi-line edits; rebuild after every edit |
+| No Python/Node on the machine | JS syntax check via `new Function(source)` in the app browser |
+| Config page showed stale HTML after plugin update | Emby Web caches plugin pages. Load with a new query string (`?fresh=N`) or `fetch(url,{cache:'reload'})` |
+| `location.reload()` did not reload in the app browser pane | Navigate to a URL with a new query string instead |
+| Emby Web in the app browser ignored the Stop command (also Emby's own admin Stop) | Client behaviour. Plugin side verified via the websocket client; see limitations |
+| Scripted clients: `TranscodingInfo` not attached at playback start | Only affected the removed transcode feature |
+| Emby's JSON parser accepted a truncated data file without error | Added a strict JSON validity check before loading; corrupt files are moved aside as `.corrupt-<time>` |
+| Emby HTML-encodes the client name only when it arrives via `X-Emby-Authorization`; the query-string / `X-Emby-Client` paths are stored raw | The plugin sanitises names itself and the page escapes all output |
+| A safety check blocked saving a detailed vulnerability write-up | Only a defensive summary is kept (section 5); do not retry |
+| Test server log still contains tokens/lines from testing | Emby logs tokens in request URLs; test users are deleted so tokens are dead |
+| `PlaybackProgress` simulation: websocket receive cancelled -> socket aborted | `tools/ws-listen.ps1` blocks on receive instead |
 
-## Behavior change: transcode features removed (requested by user)
-Removed: transcode warnings, transcode blocking (by source format, by resolution, concurrent-transcode limit), direct-play notification, `TranscodeReasonParser`, `LogManager.LogTranscode` and the "Transcode" log event, their 24 `PluginConfiguration` properties, their config-page cards, and the "transcode" wording in the plugin/assembly descriptions.
-`TranscodeMonitor` -> renamed `PlaybackMonitor` (internal static class, not serialized); it still owns watch-time-related and generic playback logic: limiter block at playback start, library time restrictions, paused-stream timeout, playback-start message, and the user/client/library exclusions. Log tag is now `[PlaybackMonitor]`.
-Kept deliberately (not transcode-specific; say the word to remove): playback-start notification, paused-stream timeout, "Excluded users/clients/libraries" and the confirmation-button option.
-Compatibility: existing `WatchingEye.xml` with the old elements loads fine (unknown elements ignored) and the next save drops them. Plugin GUID, name, version, routes and kept config property names unchanged. The earlier "TranscodingInfo timing" fragility no longer applies.
-Verified on Emby 4.10.1.0 (new build): loads; config page shows no transcode UI and saves; limiter enforcement (Stop + message, `LimitReached` event); block when starting playback while over the limit; library time restriction blocks on a disallowed day (and not when allowed); Event Log renders. Test hygiene done (probe user/data/config reset).
-Gotcha: Emby Web caches the plugin page HTML in the page session; after updating the plugin, load the dashboard in a fresh page load (or hard refresh) to see the new UI.
+## 4. Test history
 
-## Behavior change: playback-start message and paused-stream timeout removed (requested by user)
-Removed with their config options (`EnablePlaybackStartNotification`, `PlaybackStart*`, `EnablePausedStreamTimeout`, `PausedStreamTimeout*`, `EnableConfirmationButtonOnPlaybackStart/PausedStreamTimeout`), the two config-page cards, the 30 s session-check timer, the `PlaybackStopped` handler and the write-only `_sessionsBeingBlocked` state. The previous CS4014 warning disappeared with that code; the build has 0 errors and 0 warnings.
-`PlaybackMonitor` now only: (1) blocks playback when a limited user starts playing while over their limit/time-out/window, (2) enforces library time restrictions at playback start, (3) applies user/client/library exclusions. `PluginConfiguration` is now watch-time only.
-Verified on Emby 4.10.1.0 with the new build: loads; 50% threshold warning; Stop + "Time Limit Reached" at the limit (and re-sent every 15 s); block when starting playback over the limit; library restriction blocks on a disallowed day; Notifications tab shows only the exclusions; save round-trip keeps settings; test data and config reset.
+- 10-08: rebuilt DLL loads on Emby 4.10.1.0; config page served; limiter enforcement; websocket delivery of Stop / DisplayMessage; real-client (Emby Web) transcode warning/blocking decision (since removed).
+- 10-08/09: after each behaviour change: load, UI render, save round-trip, enforcement, time-out message with end time.
+- 10-09: security review + hardening verified (see section 5); regression suite added: **34/34 pass**.
+- How to repeat everything: `TESTING.md`.
 
-## Behavior change: time-out message shows local end date/time (requested by user)
-`TimeOutMessageText` supports a new `{end_time}` placeholder, rendered as the time-out's end in the **server's local time zone** (e.g. "Thursday, October 8, 2026 at 3:19 PM", `CultureInfo.CurrentCulture`). `{duration}` still works. New default text: "You have been placed in a temporary time-out. Playback is disabled until {end_time}." Config page shows placeholder help under the field.
-Note: a config already saved keeps its old text (the default only applies when the setting was never saved) - edit the Time-Out Message on the config page to adopt the new wording. The message is rendered when sent and is not updated afterwards.
-Verified on Emby 4.10.1.0: TimeOutUser (30 min) at 2:49 PM sent "...until Thursday, October 8, 2026 at 3:19 PM." to the active session, the same text when starting playback during the time-out, and the legacy "{duration}" text still renders ("29 minutes"). Test data reset.
+## 5. Security review summary (defensive)
 
-## Behavior change: global rules removed (requested by user)
-Removed `EnableGlobalLimit` / `GlobalLimitedUser` (and its constructor defaults), the `GetUserConfig` fallback that applied the global rule set to every non-excluded user, the "Global Rules for All Users" card, and ~330 lines of JS (`renderGlobalUserEditor`, `populateGlobalEditor`, global init/save code). The remaining card is titled "Limited Users".
-Effect: only users listed under Limited Users (and enabled) are ever subject to limits, time windows or time-outs. An unlisted user is never affected. This also resolves the earlier time-out quirk about "global vs. limited" coverage: a time-out recorded for an unlisted user is simply never enforced (still records one Stop + message when set).
-Kept: exclusions (users/clients/libraries), library time restrictions, Public API, everything per-user.
-Verified on Emby 4.10.1.0: loads; config has no Global properties; page JS parses and renders; per-user editor opens; UI save round-trip works and the XML contains no Global entries; unlisted user with limiter ON and a recorded time-out is not blocked; adding the user to Limited Users enforces immediately; test data reset.
-Compat: an existing `WatchingEye.xml` with `EnableGlobalLimit=true` would silently stop applying global rules after this upgrade (the setting is ignored/dropped) - irrelevant here since it was never enabled.
+Reviewed: all C#, the config page (HTML + JS), csproj, embedded logo, NuGet dependency, git history, decompilation provenance; live testing on a test server; plus an independent read-only review.
+**Fixed:** unescaped data in the admin page and unsanitised client names; Public API enable flag not enforced, key comparison, failure throttling, key generation, rejection status codes; unbounded / unvalidated minutes and user ids; integer overflow of time credit; user-id casing mismatch; log-line forging via ids; one invalid config value halting enforcement for all users; unreadable data file silently overwritten; zero limits meaning "unlimited"; unnecessary build permissions (unsafe code, no overflow checks).
+**Checked and clean:** admin routes require the Admin role; no network / process / reflection / unsafe code; file I/O limited to two files in the plugin folder; no secrets in repo or history; NuGet package has no known vulnerabilities; logo is a valid JPEG with no hidden payload.
+**Known limitations (by design):** enforcement relies on Emby session reports and a Stop command, so a client that ignores Stop or does not report playback is not stopped; time is sampled every 15 s; the API key is stored in plain text in the plugin config; Emby itself logs session tokens that appear in URLs.
 
-## Behavior changes: exclusions removed; time-out refuses unlisted users (requested by user)
-**Exclusions removed:** `ExcludedUserIds`, `ExcludedClients`, `ExcludedLibraryIds`, the `GetUserConfig` exclusion check, `PlaybackMonitor.IsSessionExcluded` and its library-path cache, the "General Notification Settings" card and the now-empty Notifications tab (its confirmation-button compatibility note moved into that option's description), and the matching JS (`renderExclusionLists`, save code, the client-list fetch). `OnPlaybackStart` now just ignores sessions without a user or now-playing item. The `GetClientList` server route still exists (unused by the UI).
-**Time-out guard:** `WatchTimeManager.TimeOutUser` now returns an error string instead of silently recording a time-out that would never be enforced. It refuses (HTTP 400, via `ArgumentException`, on both `/WatchingEye/TimeOutUser` and `/WatchingEye/Public/TimeOutUser`) when: userId/minutes invalid; the Watch Time Limiter is disabled; or the user is not an enabled entry under Limited Users. No Stop/message is sent and nothing is stored in those cases. `ClearTimeOut` is unchanged. The UI's Time-Out error toast now explains the requirement.
-`PluginConfiguration` is now 11 properties: ConfigurationVersion, EnableConfirmationButtonOnWatchTimeLimit, EnableWatchTimeLimiter, EnableWatchLimitNotifications, LimitedUsers, WatchTimeLimitMessageText, TimeWindowBlockedMessageText, TimeOutMessageText, ApiKey, EnablePublicApi, LibraryTimeRestrictions.
-Verified on Emby 4.10.1.0: loads; page JS parses, tabs are Watch Time Limiter / Library Restrictions / Logging / External API; UI Time-Out works for a listed user and a UI save keeps settings (no Exclu*/Global* in the XML); time-out for an unlisted user -> 400 on both routes; limiter off -> 400; listed + limiter on -> 204 with stop + end-time message; non-admin -> 403. Test data reset.
-Note: `ExternalWebServer` (dead code, never started) still calls `TimeOutUser` and ignores its return value; candidate for deletion.
+## 6. Backlog / ideas
 
-## Library restrictions removed; security hardening (requested by user)
-**Removed:** library time restrictions (code, config, UI tab); `PlaybackMonitor` now only blocks playback started by a limited user who is over limit / timed out / outside their window. The plugin is now: per-user watch limits (daily/weekly/monthly/yearly, per-day limits, time windows, resets, threshold warnings), extra time (extend), time-outs, event log, optional API-key control.
-**Also removed earlier in this pass:** dead code (`ExternalWebServer`, `ApiRoutes`, `UpdateUserLimits`, `GetClientList` route, duplicate `NotificationService`).
-
-**Security review outcome and fixes** (full read of C#, JS/HTML, csproj, logo, dependency, git history; plus live testing on Emby 4.10.1.0 and an independent read-only review):
-- Output encoding: every value rendered into the config page is now HTML-escaped (`esc()`); client/user names and ids are sanitised server-side (`LogSanitizer`) before they are stored, logged, shown or sent in notifications. Verified end-to-end that a hostile client name no longer executes in the admin dashboard.
-- Public API: the "Enable Public API" setting is now enforced; constant-time key comparison; repeated failures lock a client address out for 5 minutes; rejections return 403 (not 500) and are logged without the key; "Clear Key" button; keys are generated with `crypto.getRandomValues` (256-bit hex).
-- Input handling: minutes limited to 1..43200; ids matched case-insensitively and mapped to the configured user; Extend/ExtendPeriod/TimeOut require a listed user; no state is created for unknown ids; credit arithmetic saturates (capped at 10 years); period names validated.
-- Robustness: all config is normalised/clamped on save and on load (`ConfigurationValidator`); per-user error isolation in the timer so one bad record cannot stop counting for everyone; unreadable usage data is moved aside (`.corrupt-<time>`) instead of overwritten; usage saved every 60 s (was 300 s); yearly reset day clamped to the month.
-- UI: enabled limits of 0/blank are rejected in the editor (0 would mean "no limit").
-- Build hardening: `AllowUnsafeBlocks=false`, `CheckForOverflowUnderflow=true`.
-- Checked and clean: all admin routes require the Admin role; no network, process, reflection or unsafe code; only two data files are written, both in the plugin folder; no secrets in the repo or its history; NuGet dependency has no known vulnerabilities; the embedded logo is a valid JPEG with AI-provenance metadata only.
-**Known limitations (design, not fixed):** enforcement relies on Emby session reports and a Stop command, so a client that does not report playback or ignores Stop (Emby Web in the app browser ignored it) is not stopped; counting is sampled every 15 s; the Public API key is stored in plain text in the plugin config. Emby itself logs session tokens that appear in request URLs.
-Verified on the test server after the final build: loads; hostile config values are clamped; limits enforce (stop + message, block at start); time-out works with mixed-case ids and refuses unknown users; API toggle, lockout, wrong-key handling; oversized/unknown ids rejected; log lines cannot be forged; UI limit validation, Clear/Generate key, and save round-trip; corrupt data file is quarantined. All test users/data removed.
+- Install on the real server (build Release DLL, back up existing plugin config, copy DLL, restart).
+- Optionally hash the stored API key; optionally add an audit trail for admin actions (extend / reset / time-out).
+- Consider limiting the Public API to specific client addresses.
+- Add the regression suite to CI if the repo gets one.

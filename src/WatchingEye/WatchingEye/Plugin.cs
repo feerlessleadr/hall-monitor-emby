@@ -57,6 +57,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 	{
 		if (configuration is PluginConfiguration pluginConfiguration)
 		{
+			string? invalidLimit = ConfigurationValidator.FindInvalidLimit(pluginConfiguration);
+			if (invalidLimit != null)
+			{
+				throw new ArgumentException(invalidLimit);
+			}
 			ConfigurationValidator.Normalize(pluginConfiguration);
 			pluginConfiguration.ConfigurationVersion = Guid.NewGuid().ToString();
 		}
@@ -82,7 +87,13 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 
 	public void Run()
 	{
-		ConfigurationValidator.Normalize(((BasePlugin<PluginConfiguration>)(object)this).Configuration);
+		PluginConfiguration startupConfig = ((BasePlugin<PluginConfiguration>)(object)this).Configuration;
+		string? startupLimitProblem = ConfigurationValidator.FindInvalidLimit(startupConfig);
+		if (startupLimitProblem != null)
+		{
+			LogWarning("Saved configuration has an enabled limit of 0, which means no limit: " + startupLimitProblem + " Fix it on the plugin page.");
+		}
+		ConfigurationValidator.Normalize(startupConfig);
 		InAppNotificationService.Start(_logger, _sessionManager);
 		PlaybackMonitor.Start(_sessionManager, _logger);
 		WatchTimeManager.Start(_sessionManager, _logger, _appPaths, _jsonSerializer);

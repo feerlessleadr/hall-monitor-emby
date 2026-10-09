@@ -17,6 +17,43 @@ public static class ConfigurationValidator
 
 	public const int MaxApiKeyLength = 128;
 
+	/// <summary>
+	/// Returns an error message when an enabled limit is zero or blank. A limit of 0 would silently mean
+	/// "no limit", so such a configuration is rejected instead of saved.
+	/// </summary>
+	public static string? FindInvalidLimit(PluginConfiguration config)
+	{
+		foreach (LimitedUser user in config?.LimitedUsers ?? new List<LimitedUser>())
+		{
+			if (user == null)
+			{
+				continue;
+			}
+			string name = LogSanitizer.Clean(string.IsNullOrWhiteSpace(user.Username) ? user.UserId : user.Username);
+			if (user.EnableDailyLimit && user.DailyLimitMinutes < 1)
+			{
+				return name + ": the daily limit must be at least 1 minute when it is enabled (0 would mean no limit).";
+			}
+			if (user.EnableWeeklyLimit && user.WeeklyLimitHours < 1)
+			{
+				return name + ": the weekly limit must be at least 1 hour when it is enabled (0 would mean no limit).";
+			}
+			if (user.EnableMonthlyLimit && user.MonthlyLimitHours < 1)
+			{
+				return name + ": the monthly limit must be at least 1 hour when it is enabled (0 would mean no limit).";
+			}
+			if (user.EnableYearlyLimit && user.YearlyLimitHours < 1)
+			{
+				return name + ": the yearly limit must be at least 1 hour when it is enabled (0 would mean no limit).";
+			}
+			if (user.EnablePerDayLimits && (user.PerDayLimits ?? new List<DailyLimitOverride>()).Any((DailyLimitOverride o) => o != null && o.IsEnabled && o.LimitMinutes < 1))
+			{
+				return name + ": per-day limits must be at least 1 minute when enabled (0 would mean no limit).";
+			}
+		}
+		return null;
+	}
+
 	public static void Normalize(PluginConfiguration config)
 	{
 		if (config == null)

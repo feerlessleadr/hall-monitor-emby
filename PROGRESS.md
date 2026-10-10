@@ -21,7 +21,7 @@ Plugin GUID `e8c3b1b3-4f56-4f38-a28a-2e6c5a043007` and name "Watching Eye" are u
 
 **Build:** `dotnet build src/WatchingEye -c Release` -> `src/WatchingEye/bin/Release/net6.0/WatchingEye.dll`; copy that one file to Emby's `plugins` folder and restart. Dependency: NuGet `MediaBrowser.Server.Core` 4.9.1.90 (no Emby DLLs needed).
 **Tags:** `v1.6.8.0-recovered` (faithful rebuild), `v1.6.8.0-watchtime-only`, `v1.6.8.0-hardened`.
-**Status:** 53/53 regression checks pass on Emby 4.10.1.0 (`tools/Run-RegressionTests.ps1`, see `TESTING.md`; the 5-minute lockout check is skipped with `-SkipLockout`). Plugin version in the source is 1.8.0.0; the published release is v1.7.0.0 (tag-triggered workflow `.github/workflows/release.yml`; the user installs it on their real server with their own GitHub-repo downloader plugin). v1.8.0.0 is built and tested but not tagged yet. Companion Android app: https://github.com/feerlessleadr/watching-eye-android-app (v1.4, signed releases built by GitHub Actions; section 8-10).
+**Status:** 53/53 regression checks pass on Emby 4.10.1.0 (`tools/Run-RegressionTests.ps1`, see `TESTING.md`; the 5-minute lockout check is skipped with `-SkipLockout`). Plugin version in the source is 1.8.0.0; the published release is v1.7.0.0 (tag-triggered workflow `.github/workflows/release.yml`; the user installs it on their real server with their own GitHub-repo downloader plugin). v1.8.0.0 (live push, undo) was tagged and published on 2026-10-10 together with app v1.5; check the Actions tab and Releases page for both runs. Companion Android app: https://github.com/feerlessleadr/watching-eye-android-app (v1.4, signed releases built by GitHub Actions; section 8-10).
 
 ## 2. Decision log
 
@@ -152,4 +152,4 @@ The user wants to make this repository public (2026-10-09). Audit before publish
 
 **Issues found while testing (fixed):** the notification's +15 button failed with "can't reach the server" because the broadcast receiver re-read the encrypted settings; it now uses the settings the running service already holds. The emulator that was first used turned out to be shared with another project's app: tests moved to a separate, throw-away emulator, which was removed afterwards. A shell `sed` insert left a stray character again (see section 3): use the editor tool.
 **Test server cleanup:** test users, the throw-away Emby API key, and the plugin configuration were removed or reset after the UI tests.
-**Decisions still open:** tag plugin v1.8.0.0 and app v1.5 (needs the user's "publish it"); install the plugin update on the production server; battery-optimisation wording for the alerts setting.
+**Decisions still open:** install the plugin update on the production server; battery-optimisation wording for the alerts setting.

@@ -1,0 +1,62 @@
+name: Release plugin
+
+# Builds WatchingEye.dll and publishes it as a GitHub Release when you push a version tag such as v1.7.0.0.
+# The tag must equal "v" + the AssemblyVersion in src/WatchingEye/Properties/AssemblyInfo.cs.
+# You can also start it by hand (Actions tab -> Release plugin -> Run workflow) as a dry run: it builds the DLL and keeps
+# it as a downloadable workflow artifact, but publishes nothing.
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # only needed to create the GitHub Release
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Check that the tag matches the plugin version
+        if: github.ref_type == 'tag'
+        run: |
+          version="$(sed -n 's/.*AssemblyVersion("\([0-9.]*\)").*/\1/p' src/WatchingEye/Properties/AssemblyInfo.cs | head -n 1)"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match AssemblyVersion ${version}. Bump the version, commit, then tag again."
+            exit 1
+          fi
+
+      - name: Build
+        run: dotnet build src/WatchingEye -c Release
+
+      - name: Name the DLL and write its checksum
+        run: |
+          mkdir -p dist
+          cp src/WatchingEye/bin/Release/net6.0/WatchingEye.dll dist/WatchingEye.dll
+          (cd dist && sha256sum WatchingEye.dll > WatchingEye.dll.sha256)
+          cat dist/WatchingEye.dll.sha256
+
+      - name: Publish the GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Safe to re-run: if a release for this tag already exists, leave it alone instead of failing.
+          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+            echo "A release for ${GITHUB_REF_NAME} already exists; not creating another one."
+          else
+            gh release create "${GITHUB_REF_NAME}" dist/* --title "Watching Eye plugin ${GITHUB_REF_NAME}" --generate-notes
+          fi
+
+      - name: Keep the DLL as a workflow artifact (manual dry runs)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: plugin-dll
+          path: dist/*
+          retention-days: 14

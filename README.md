@@ -22,3 +22,16 @@ Back up the existing plugin settings (`programdata/plugins/configurations/Watchi
 ## Documentation
 - `PROGRESS.md` - current state, decision log, issues and workarounds, security review summary, backlog
 - `TESTING.md` - how to run the regression suite (`tools/Run-RegressionTests.ps1`) against a test server
+
+## Provenance, licensing and takedown
+- **This is a derivative work.** The plugin source was recovered by decompiling a compiled plugin whose author could not be
+  identified (the assembly has no company or author information, and its original repository was deleted). The original
+  author keeps whatever rights they have in that work. This repository does **not** include the original binary.
+- **No open-source license is granted for the recovered code.** No license file is provided on purpose: the original author's
+  terms are unknown, so nobody can license their part. Without a license, the default is that all rights are reserved;
+  GitHub's terms still let you view and fork this repository. The added material (tests, scripts, documentation and the
+  changes made after the recovery) is offered for reading and reference only unless a license is added later.
+- **If you are the original author** (or hold rights in the original plugin) and want this repository credited, changed
+  or removed, please open an issue or contact the repository owner. It will be handled promptly.
+- This is an independent, unofficial project and is not affiliated with or endorsed by Emby / Premiere Tech.
+- The software is provided as is, without warranty. Test it on a non-production server first.

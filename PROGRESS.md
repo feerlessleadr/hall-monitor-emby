@@ -2,7 +2,7 @@
 
 Living log for this fork. Sections: current state, decision log, issues and workarounds, test history, backlog.
 Detailed change history is in the git log (every behaviour change is its own commit).
-Last updated: 2026-10-09.
+Last updated: 2026-10-09 (end of the recovery, hardening and Android-app sessions).
 
 ## 1. Current state
 
@@ -21,7 +21,7 @@ Plugin GUID `e8c3b1b3-4f56-4f38-a28a-2e6c5a043007` and name "Watching Eye" are u
 
 **Build:** `dotnet build src/WatchingEye -c Release` -> `src/WatchingEye/bin/Release/net6.0/WatchingEye.dll`; copy that one file to Emby's `plugins` folder and restart. Dependency: NuGet `MediaBrowser.Server.Core` 4.9.1.90 (no Emby DLLs needed).
 **Tags:** `v1.6.8.0-recovered` (faithful rebuild), `v1.6.8.0-watchtime-only`, `v1.6.8.0-hardened`.
-**Status:** 34/34 regression checks pass on Emby 4.10.1.0 (`tools/Run-RegressionTests.ps1`, see `TESTING.md`). Not yet installed on the user's real server.
+**Status:** 40/40 regression checks pass on Emby 4.10.1.0 (`tools/Run-RegressionTests.ps1`, see `TESTING.md`). Not yet installed on the user's real server. Companion Android app: https://github.com/feerlessleadr/watching-eye-android-app (v1.4, signed releases built by GitHub Actions; section 8-10).
 
 ## 2. Decision log
 
@@ -43,6 +43,11 @@ Plugin GUID `e8c3b1b3-4f56-4f38-a28a-2e6c5a043007` and name "Watching Eye" are u
 | 10-09 | Chosen limits: minutes 1..43200 per request, credit cap 10 years, API lockout 5 failures/5 min -> 5 min, save every 60 s | assistant | Conservative defaults; easy to change |
 | 10-09 | Enabled limit of 0 is rejected (option 2) | user | A blank field must not silently disable a limit |
 | 10-09 | Kept legacy data migration (`WatchedTimeTicks` -> daily) in the loader | assistant | Harmless; only matters when upgrading very old data files |
+| 10-09 | Switched the local repo to the rewritten, published history; commits attributed to the GitHub identity, original DLL kept out of the published repo | user | Keeps the work email and the third-party binary out of GitHub; the old history is kept in a local bundle |
+| 10-09 | User names are kept exactly (new `CleanText`); expired time-outs reported as none; status gained optional `EffectiveDailyLimitMinutes` and `IsEnabled` | user: "fix both plugin and app" | Compatibility with the Android app (names with quotes broke session matching; expired time-outs looked active) |
+| 10-09 | Android app: auth in headers, local-time time-outs, clamped minutes, backoff after a 403; app repo got CI, a tag-triggered signed release workflow (secrets in GitHub, certificate fingerprint check), MIT license, history purge | user | See sections 8-10 |
+| 10-09 | App release process: bump `versionCode`/`versionName`, push, then push tag `v<versionName>`; first signed release is v1.4 | user | Tag must equal `v` + versionName or the workflow stops |
+| 10-09 | Plugin repo to be made public with a provenance / no-license / takedown notice and no LICENSE file | user asked to publish; assistant advised | The code is derived from a decompiled plugin by an unknown author, so no license can be granted for it (see section 11) |
 
 ## 3. Issues and workarounds log
 
@@ -62,6 +67,13 @@ Plugin GUID `e8c3b1b3-4f56-4f38-a28a-2e6c5a043007` and name "Watching Eye" are u
 | A safety check blocked saving a detailed vulnerability write-up | Only a defensive summary is kept (section 5); do not retry |
 | Test server log still contains tokens/lines from testing | Emby logs tokens in request URLs; test users are deleted so tokens are dead |
 | `PlaybackProgress` simulation: websocket receive cancelled -> socket aborted | `tools/ws-listen.ps1` blocks on receive instead |
+| The tool's path guard blocked a command that contained the word `Remove-Item` next to a later `/Users` string | Avoid that word combination; clear environment variables with `$env:NAME = $null` |
+| Writing a file whose content used certain quoting made the whole shell command fail to parse (nothing ran) | Use the file-writing tool for files with quotes/apostrophes instead of shell here-docs |
+| `grep -c $'\r'` counts every line (empty pattern) | Count carriage returns with `tr -cd '\r' \| wc -c` and always run a positive control |
+| `git filter-branch` leaves `refs/original/*` that still hold the old history | Delete those refs and `gc --prune=now` before pushing; verify the rewritten copy first (trees identical except the removed file) |
+| Force-updating an existing tag re-triggers the tag workflow | Make the publish step skip when the release already exists (done in the app repo) |
+| GitHub run results are not visible from here | The user reports the Actions result (screenshots); workflow logic is tested locally with a throwaway key |
+| apksigner on the runner: first dry run reported "found 0 signers" | Script now keeps apksigner output, accepts both signer-line formats, tries each installed apksigner; Java 21 and ubuntu-24.04 pinned |
 
 ## 4. Test history
 
@@ -79,10 +91,12 @@ Reviewed: all C#, the config page (HTML + JS), csproj, embedded logo, NuGet depe
 
 ## 6. Backlog / ideas
 
-- Install on the real server (build Release DLL, back up existing plugin config, copy DLL, restart).
+- **Install on the real server** (not done yet): build the Release DLL, back up the existing plugin settings (`programdata/plugins/configurations/WatchingEye*`), copy the DLL to the `plugins` folder, restart Emby, then run through the plugin page. The plugin Public API must be enabled with a key for the Android app's actions.
+- Optionally add a tag-triggered release workflow for this repo that builds `WatchingEye.dll` and attaches it to a GitHub Release (the app repo already has the pattern).
 - Optionally hash the stored API key; optionally add an audit trail for admin actions (extend / reset / time-out).
 - Consider limiting the Public API to specific client addresses.
-- Add the regression suite to CI if the repo gets one.
+- Add the regression suite to CI (needs an Emby server, so probably not practical on GitHub runners).
+- App repo, still to do by the user: add the tag and branch rulesets, enable Dependabot, make it public and then enable secret scanning / push protection and the outside-contributor approval setting.
 
 ## 7. GitHub backup
 2026-10-09: pushed to https://github.com/feerlessleadr/watching-eye-emby.git (branch `main` plus the three tags). The pushed history is a rewritten copy of the original local history: all commits are attributed to `feerlessleadr <github@thecgkg.com>` (no work email or username anywhere in metadata, messages or files) and `original/WatchingEye.dll` was removed from every commit (the README keeps its SHA-256).
@@ -103,7 +117,7 @@ Companion app: https://github.com/feerlessleadr/watching-eye-android-app (built 
 
 ## 9. Android app: signed release automation (2026-10-09)
 App repo commit 656cb4b adds GitHub Actions: `ci.yml` (tests + debug build on every push, no secrets) and `release.yml` (on a `v*` tag, or a manual dry run: tests, signed release APK, certificate fingerprint check, GitHub Release with APK and checksum). Release signing in `app/build.gradle` reads `ANDROID_KEYSTORE_FILE` / `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD`; with none set the release build stays unsigned. Actions are pinned to commit hashes.
-The user confirmed the keystore (`C:\androidkeys\watchingeye.jks`, alias `key0`) is the key of the installed app: its SHA-256 fingerprint `DF:15:A0:B3:A7:31:31:32:6A:10:B5:49:34:D1:EE:A3:C2:A0:24:95:19:D2:28:31:2E:C3:72:61:85:F4:36:F7` equals the signature of the supplied APK. The keystore and passwords were never shared with the assistant; the user adds them as four repository secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`).
+The user confirmed their release keystore (kept off this machine and out of every repository) is the key of the installed app: its SHA-256 fingerprint `DF:15:A0:B3:A7:31:31:32:6A:10:B5:49:34:D1:EE:A3:C2:A0:24:95:19:D2:28:31:2E:C3:72:61:85:F4:36:F7` equals the signature of the supplied APK. The keystore and passwords were never shared with the assistant; the user adds them as four repository secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`).
 Tested locally with a throwaway key (since deleted): unsigned build without a key, signed build with the same environment variables the workflow sets (including the base64 round trip), fingerprint guard passes for the right key / rejects a wrong key / rejects an unsigned APK / accepts the user's real APK against the real fingerprint, tag-vs-version check, YAML validity. Not testable here: the workflow run on GitHub itself (needs the secrets), so the first dry run may need a small fix.
 Note for later: a test technique trap on this machine - `grep -c $'\r'` is passed as an empty pattern and matches every line; count carriage returns with `tr -cd '\r' | wc -c` instead (always run a control).
 
@@ -112,3 +126,9 @@ App repo (private): added an MIT LICENSE (copyright holder `feerlessleadr`), har
 Purged `export.zip` (a decompiled export of the old app) from the whole history with `git filter-branch`, then force-pushed `main` and the tags `v1.3`/`v1.4` (verified first: only the first commit differed, and only by that file; both tags have byte-identical trees). Size 6.6 MB -> 0.47 MB. Commit hashes changed (main now e1d75d9; v1.4 = 743f011). The original history is saved locally in `C:\dev\watching-eye-android-app-original-history.bundle` (contains the export; do not publish). Local repo was switched to the published history. Moving the v1.4 tag re-triggers the release workflow once (old workflow logic at that commit): a red run at the publish step is expected if the v1.4 release already exists.
 Old commits may stay reachable by hash on GitHub until GitHub garbage-collects them; nothing sensitive was in them (checked: no keys, passwords or private addresses).
 Before making the repo public: enable secret scanning/push protection (appears for public repos), set outside-contributor workflow approval, add tag/branch rulesets (steps given to the user).
+
+## 11. Publishing this repository (provenance and licensing)
+The user wants to make this repository public (2026-10-09). Audit before publishing: all 37 commits are attributed to the GitHub identity; no work email, personal name, secrets, private addresses or binaries (only the logo JPG) in any commit or file; the original DLL is not tracked.
+**Known limitation of that audit:** one earlier commit (8a32767) mentions the path/alias of the user's release keystore in this log (scrubbed going forward; the keystore itself was never shared). It is harmless without the file and was not worth rewriting history for.
+**Legal position (advice given, accepted by the user's decision to publish):** the source is derived from decompiling a plugin whose author is unknown, so nobody can grant a license for that part. Decisions: no LICENSE file; README states provenance, "no license granted", a takedown / credit contact route, and non-affiliation with Emby; the original binary stays out. Residual risk: the original author could object; the response is to credit or remove promptly. If the user later wants a license, only the material added after the recovery (tests, scripts, docs, changes) could reasonably be licensed, and mixed ownership makes a blanket license wrong.
+**Suggested GitHub settings when going public:** Settings -> General -> Danger Zone -> Change visibility; then Advanced Security -> enable Secret scanning and Push protection; Actions -> General -> require approval for outside contributors; Rulesets -> protect `main` (restrict deletions, block force pushes) with a Repository-admin bypass; enable Dependabot alerts. This repository has no workflows or secrets today.

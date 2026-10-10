@@ -149,10 +149,15 @@ try {
         $cfg.LimitedUsers[0].EnablePerDayLimits = $false
         Save-PluginConfig $cfg
         $row = Get-LimitedStatus $probe
-        $expectedFields = @('UserId', 'Username', 'DailyLimitMinutes', 'WeeklyLimitHours', 'MonthlyLimitHours', 'YearlyLimitHours', 'SecondsWatchedDaily', 'SecondsWatchedWeekly', 'SecondsWatchedMonthly', 'SecondsWatchedYearly', 'CreditSecondsDaily', 'CreditSecondsWeekly', 'CreditSecondsMonthly', 'CreditSecondsYearly', 'TimeOutUntil', 'EffectiveDailyLimitMinutes', 'IsEnabled', 'BlockReason')
+        $expectedFields = @('UserId', 'Username', 'DailyLimitMinutes', 'WeeklyLimitHours', 'MonthlyLimitHours', 'YearlyLimitHours', 'SecondsWatchedDaily', 'SecondsWatchedWeekly', 'SecondsWatchedMonthly', 'SecondsWatchedYearly', 'CreditSecondsDaily', 'CreditSecondsWeekly', 'CreditSecondsMonthly', 'CreditSecondsYearly', 'TimeOutUntil', 'EffectiveDailyLimitMinutes', 'IsEnabled', 'BlockReason', 'SecondsRemaining', 'LimitingPeriod', 'LimitingAllowedSeconds')
         $missing = @($expectedFields | Where-Object { $row.PSObject.Properties.Name -notcontains $_ })
         Check 'Status contains every field the Android app reads plus the new ones' ($missing.Count -eq 0) "missing=[$($missing -join ',')]"
         Check 'Effective daily limit equals the daily limit' ($row.EffectiveDailyLimitMinutes -eq 60) "value=$($row.EffectiveDailyLimitMinutes)"
+        Check 'Remaining time and the limiting period are reported' (($row.SecondsRemaining -ge 3500) -and ($row.SecondsRemaining -le 3600) -and ($row.LimitingPeriod -eq 'Daily') -and ($row.LimitingAllowedSeconds -eq 3600)) "remaining=$($row.SecondsRemaining) period=$($row.LimitingPeriod) allowed=$($row.LimitingAllowedSeconds)"
+        $cfg = Get-PluginConfig; $cfg.LimitedUsers[0].EnableDailyLimit = $false; Save-PluginConfig $cfg
+        $noLimit = Get-LimitedStatus $probe
+        Check 'No enabled limit reports -1 remaining' (($noLimit.SecondsRemaining -eq -1) -and ($noLimit.LimitingPeriod -eq '')) "remaining=$($noLimit.SecondsRemaining)"
+        $cfg = Get-PluginConfig; $cfg.LimitedUsers[0].EnableDailyLimit = $true; Save-PluginConfig $cfg
         $cfg = Get-PluginConfig
         $today = (Get-Date).DayOfWeek.ToString()
         $cfg.LimitedUsers[0].EnablePerDayLimits = $true

@@ -42,4 +42,13 @@ public class LimitedUserStatus
 
 	/// <summary>Why playback is blocked right now: Allowed, TimeLimitExceeded, OutsideTimeWindow or TimedOut.</summary>
 	public string BlockReason { get; set; } = "Allowed";
+
+	/// <summary>Seconds of watch time left before the first enabled limit is reached; -1 when no limit applies.</summary>
+	public double SecondsRemaining { get; set; } = -1.0;
+
+	/// <summary>Which limit is the closest: Daily, Weekly, Monthly or Yearly (empty when no limit applies).</summary>
+	public string LimitingPeriod { get; set; } = string.Empty;
+
+	/// <summary>Total seconds allowed in that period (the limit plus any extra time).</summary>
+	public double LimitingAllowedSeconds { get; set; }
 }

@@ -706,6 +706,7 @@ public static class WatchTimeManager
 			{
 				UserId = id
 			});
+			RemainingInfo remaining = ComputeRemaining(limitedUser, orAdd);
 			list.Add(new LimitedUserStatus
 			{
 				UserId = limitedUser.UserId,
@@ -725,10 +726,72 @@ public static class WatchTimeManager
 				TimeOutUntil = ((orAdd.TimeOutUntil > DateTime.UtcNow) ? orAdd.TimeOutUntil : DateTime.MinValue),
 				EffectiveDailyLimitMinutes = ((limitedUser.EnableDailyLimit || limitedUser.EnablePerDayLimits) ? GetEffectiveDailyLimitMinutes(limitedUser) : 0),
 				IsEnabled = limitedUser.IsEnabled,
-				BlockReason = GetPlaybackBlockReason(limitedUser.UserId).ToString()
+				BlockReason = GetPlaybackBlockReason(limitedUser.UserId).ToString(),
+				SecondsRemaining = remaining.Seconds,
+				LimitingPeriod = remaining.Period,
+				LimitingAllowedSeconds = remaining.AllowedSeconds
 			});
 		}
 		return list;
+	}
+
+	private readonly struct RemainingInfo
+	{
+		public double Seconds { get; }
+
+		public string Period { get; }
+
+		public double AllowedSeconds { get; }
+
+		public RemainingInfo(double seconds, string period, double allowedSeconds)
+		{
+			Seconds = seconds;
+			Period = period;
+			AllowedSeconds = allowedSeconds;
+		}
+	}
+
+	/// <summary>
+	/// How much watch time is left before the first enabled limit is reached (the same rules as <see cref="IsTimeLimitExceeded"/>).
+	/// Seconds is -1 when no limit applies.
+	/// </summary>
+	private static RemainingInfo ComputeRemaining(LimitedUser userConfig, UserWatchData userData)
+	{
+		double bestSeconds = -1.0;
+		string bestPeriod = string.Empty;
+		double bestAllowed = 0.0;
+		void Consider(string period, TimeSpan limit, long creditTicks, long watchedTicks)
+		{
+			TimeSpan allowed = limit + TimeSpan.FromTicks(creditTicks);
+			double left = Math.Max(0.0, (allowed - TimeSpan.FromTicks(watchedTicks)).TotalSeconds);
+			if (bestSeconds < 0.0 || left < bestSeconds)
+			{
+				bestSeconds = left;
+				bestPeriod = period;
+				bestAllowed = allowed.TotalSeconds;
+			}
+		}
+		if (userConfig.EnableDailyLimit || userConfig.EnablePerDayLimits)
+		{
+			int effectiveDailyLimitMinutes = GetEffectiveDailyLimitMinutes(userConfig);
+			if (effectiveDailyLimitMinutes > 0)
+			{
+				Consider("Daily", TimeSpan.FromMinutes(effectiveDailyLimitMinutes), userData.TimeCreditTicksDaily, userData.WatchedTimeTicksDaily);
+			}
+		}
+		if (userConfig.EnableWeeklyLimit && userConfig.WeeklyLimitHours > 0)
+		{
+			Consider("Weekly", TimeSpan.FromHours(userConfig.WeeklyLimitHours), userData.TimeCreditTicksWeekly, userData.WatchedTimeTicksWeekly);
+		}
+		if (userConfig.EnableMonthlyLimit && userConfig.MonthlyLimitHours > 0)
+		{
+			Consider("Monthly", TimeSpan.FromHours(userConfig.MonthlyLimitHours), userData.TimeCreditTicksMonthly, userData.WatchedTimeTicksMonthly);
+		}
+		if (userConfig.EnableYearlyLimit && userConfig.YearlyLimitHours > 0)
+		{
+			Consider("Yearly", TimeSpan.FromHours(userConfig.YearlyLimitHours), userData.TimeCreditTicksYearly, userData.WatchedTimeTicksYearly);
+		}
+		return new RemainingInfo(bestSeconds, bestPeriod, bestAllowed);
 	}
 
 	public const int MaxMinutesPerRequest = 43200;

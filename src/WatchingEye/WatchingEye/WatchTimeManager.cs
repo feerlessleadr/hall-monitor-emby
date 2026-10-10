@@ -226,6 +226,8 @@ public static class WatchTimeManager
 			if (anyChanged)
 			{
 				_isDirty = true;
+				// Watch time moved (or a reset fired): push the new numbers to connected apps.
+				StatusPushListener.NotifyChanged();
 			}
 			if (_isDirty && (utcNow - _lastSaveTime).TotalSeconds >= (double)DeferredSaveIntervalSeconds)
 			{
@@ -722,7 +724,8 @@ public static class WatchTimeManager
 				CreditSecondsYearly = TimeSpan.FromTicks(orAdd.TimeCreditTicksYearly).TotalSeconds,
 				TimeOutUntil = ((orAdd.TimeOutUntil > DateTime.UtcNow) ? orAdd.TimeOutUntil : DateTime.MinValue),
 				EffectiveDailyLimitMinutes = ((limitedUser.EnableDailyLimit || limitedUser.EnablePerDayLimits) ? GetEffectiveDailyLimitMinutes(limitedUser) : 0),
-				IsEnabled = limitedUser.IsEnabled
+				IsEnabled = limitedUser.IsEnabled,
+				BlockReason = GetPlaybackBlockReason(limitedUser.UserId).ToString()
 			});
 		}
 		return list;
@@ -803,6 +806,29 @@ public static class WatchTimeManager
 		userWatchData.TimeCreditTicksMonthly = AddCredit(userWatchData.TimeCreditTicksMonthly, ticks);
 		userWatchData.TimeCreditTicksYearly = AddCredit(userWatchData.TimeCreditTicksYearly, ticks);
 		_limitServerNotified.TryRemove(canonicalId, out var _);
+		SaveWatchTimeDataImmediate();
+		return null;
+	}
+
+	/// <summary>Takes back extra time credit (the app's Undo for Extend). The credit never goes below zero.</summary>
+	public static string? ReduceTimeForUser(string userId, int minutesToRemove)
+	{
+		string? text = ValidateMinutes(minutesToRemove);
+		if (text != null)
+		{
+			return text;
+		}
+		text = ResolveListedUser(userId, out string canonicalId);
+		if (text != null)
+		{
+			return text;
+		}
+		UserWatchData userWatchData = GetOrCreateData(canonicalId);
+		long ticks = TimeSpan.FromMinutes(minutesToRemove).Ticks;
+		userWatchData.TimeCreditTicksDaily = AddCredit(userWatchData.TimeCreditTicksDaily, -ticks);
+		userWatchData.TimeCreditTicksWeekly = AddCredit(userWatchData.TimeCreditTicksWeekly, -ticks);
+		userWatchData.TimeCreditTicksMonthly = AddCredit(userWatchData.TimeCreditTicksMonthly, -ticks);
+		userWatchData.TimeCreditTicksYearly = AddCredit(userWatchData.TimeCreditTicksYearly, -ticks);
 		SaveWatchTimeDataImmediate();
 		return null;
 	}
@@ -1120,5 +1146,7 @@ public static class WatchTimeManager
 		SaveWatchTimeData();
 		_isDirty = false;
 		_lastSaveTime = DateTime.UtcNow;
+		// Every admin change (extend, reduce, time-out, reset, ...) ends up here: tell connected apps straight away.
+		StatusPushListener.NotifyChanged();
 	}
 }

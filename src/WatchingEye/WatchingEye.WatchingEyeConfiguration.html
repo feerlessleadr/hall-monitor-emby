@@ -214,7 +214,7 @@
 
                         <h3>GET /WatchingEye/Public/Status</h3>
                         <p>Gets the current watch time status for all users who are configured in the Watch Time Limiter.</p>
-                        <p><strong>Example Response:</strong> (<code>TimeOutUntil</code> is UTC and is <code>0001-01-01T00:00:00Z</code> when no time-out is active or it has expired; <code>EffectiveDailyLimitMinutes</code> is today's daily limit after per-day overrides, 0 when no daily limit applies.)</p>
+                        <p><strong>Example Response:</strong> (<code>TimeOutUntil</code> is UTC and is <code>0001-01-01T00:00:00Z</code> when no time-out is active or it has expired; <code>EffectiveDailyLimitMinutes</code> is today's daily limit after per-day overrides, 0 when no daily limit applies; <code>BlockReason</code> is Allowed, TimeLimitExceeded, OutsideTimeWindow or TimedOut.)</p>
                         <pre>[
     {
         "UserId": "a1b2c3d4...",
@@ -233,6 +233,7 @@
         "CreditSecondsYearly": 0,
         "EffectiveDailyLimitMinutes": 120,
         "IsEnabled": true,
+        "BlockReason": "Allowed",
         "TimeOutUntil": "0001-01-01T00:00:00Z"
     }
 ]</pre>
@@ -246,6 +247,17 @@
     "UserId": "YOUR_USER_ID_HERE",
     "Minutes": 60
 }</pre>
+
+                        <hr style="margin: 2em 0;">
+
+                        <h3>POST /WatchingEye/Public/ReduceTime</h3>
+                        <p>Takes back extra time previously added with ExtendTime (an "undo"). The extra time never goes below zero.</p>
+                        <p><strong>Request Body:</strong> same as ExtendTime.</p>
+
+                        <hr style="margin: 2em 0;">
+
+                        <h3>Live updates (websocket push)</h3>
+                        <p>Instead of asking for the status over and over, an app can keep one connection open to Emby's websocket (<code>/embywebsocket?deviceId=...</code>, with the Emby key in the <code>X-Emby-Token</code> header) and send <code>{"MessageType":"WatchingEyeStatusStart","Data":"0,30000,YOUR_PLUGIN_KEY"}</code>. The plugin then sends <code>{"MessageType":"WatchingEyeStatus","Data":{"Version":..,"ServerTimeUtc":..,"Users":[ ...same rows as /Public/Status... ]}}</code> straight away, whenever anything changes (watch time, extend, time-out, reset, settings) and at least every 30 seconds. Without a valid key (and with the Public API disabled) the message carries only an <code>Error</code>. Send <code>WatchingEyeStatusStop</code> to unsubscribe.</p>
 
                         <hr style="margin: 2em 0;">
 

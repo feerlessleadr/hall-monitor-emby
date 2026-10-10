@@ -66,6 +66,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 			pluginConfiguration.ConfigurationVersion = Guid.NewGuid().ToString();
 		}
 		base.UpdateConfiguration(configuration);
+		StatusPushListener.NotifyChanged();
 	}
 
 	public IEnumerable<PluginPageInfo> GetPages()

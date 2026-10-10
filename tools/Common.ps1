@@ -81,3 +81,19 @@ function Send-PlaybackReport {
     $body = @{ ItemId = $ItemId; PlaySessionId = $PlaySessionId; PositionTicks = $PositionTicks; IsPaused = $false; CanSeek = $true; PlayMethod = 'DirectPlay' } | ConvertTo-Json
     Invoke-RestMethod "$($script:Api)$Path" -Method Post -Headers @{ 'X-Emby-Token' = $User.Token } -ContentType 'application/json' -Body $body | Out-Null
 }
+
+# Starts tools\ws-push-client.ps1 (the app's live connection) hidden and returns the process; messages go to $LogFile.
+function Start-PushClient {
+    param([string]$Token, [string]$LogFile, [string]$PluginKey = '', [switch]$Sessions)
+    $script = Join-Path $PSScriptRoot 'ws-push-client.ps1'
+    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$script`" -Token $Token -Out `"$LogFile`" -PluginKey `"$PluginKey`""
+    if ($Sessions) { $arguments += ' -Sessions' }
+    return Start-Process powershell -PassThru -WindowStyle Hidden -ArgumentList $arguments
+}
+
+# Returns the parsed Watching Eye status pushes (oldest first) from a push client's log file.
+function Get-StatusPushes {
+    param([string]$LogFile)
+    $lines = @(Get-Content -LiteralPath $LogFile -ErrorAction SilentlyContinue | Where-Object { $_ -match '"MessageType":"WatchingEyeStatus"' })
+    return @($lines | ForEach-Object { ($_ -replace '^\S+ ', '') | ConvertFrom-Json } | ForEach-Object { $_.Data })
+}

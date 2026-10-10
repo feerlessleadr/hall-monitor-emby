@@ -39,4 +39,7 @@ public class LimitedUserStatus
 
 	/// <summary>False when the user's limit is switched off on the plugin page.</summary>
 	public bool IsEnabled { get; set; } = true;
+
+	/// <summary>Why playback is blocked right now: Allowed, TimeLimitExceeded, OutsideTimeWindow or TimedOut.</summary>
+	public string BlockReason { get; set; } = "Allowed";
 }

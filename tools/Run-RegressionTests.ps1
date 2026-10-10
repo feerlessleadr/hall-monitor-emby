@@ -80,6 +80,54 @@ try {
     Get-Status 'POST' '/WatchingEye/ClearTimeOut' $script:Admin @{ UserId = $probe.Id } | Out-Null
     Check 'Time-out refuses a user who is not in Limited Users' ((Get-Status 'POST' '/WatchingEye/TimeOutUser' $script:Admin @{ UserId = 'someone-else'; Minutes = 5 }) -eq 400)
 
+    Write-Host "== Undo (ReduceTime)"
+    Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+    Get-Status 'POST' '/WatchingEye/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 10 } | Out-Null
+    Check 'ReduceTime takes back part of an extension' (((Get-Status 'POST' '/WatchingEye/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 4 }) -eq 204) -and ((Get-LimitedStatus $probe).CreditSecondsDaily -eq 360)) "credit=$((Get-LimitedStatus $probe).CreditSecondsDaily) s (expected 360)"
+    Get-Status 'POST' '/WatchingEye/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 43200 } | Out-Null
+    Check 'ReduceTime never takes the credit below zero' ((Get-LimitedStatus $probe).CreditSecondsDaily -eq 0) "credit=$((Get-LimitedStatus $probe).CreditSecondsDaily)"
+    Check 'ReduceTime zero/over-cap/unknown user are rejected' (((Get-Status 'POST' '/WatchingEye/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 0 }) -eq 400) -and ((Get-Status 'POST' '/WatchingEye/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 43201 }) -eq 400) -and ((Get-Status 'POST' '/WatchingEye/ReduceTime' $script:Admin @{ UserId = 'nobody'; Minutes = 5 }) -eq 400))
+    Check 'Non-admin is refused: POST /WatchingEye/ReduceTime' ((Get-Status 'POST' '/WatchingEye/ReduceTime' $viaProbe @{ UserId = $probe.Id; Minutes = 5 }) -eq 403)
+    Check 'Public ReduceTime without the key is refused, with the key works' (((Get-Status 'POST' '/WatchingEye/Public/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 5 }) -eq 403) -and ((Get-Status 'POST' '/WatchingEye/Public/ReduceTime' ($script:Admin + $key) @{ UserId = $probe.Id; Minutes = 5 }) -eq 204))
+
+    Write-Host "== Live push (the app's connection)"
+    $pushLog = Join-Path ([IO.Path]::GetTempPath()) ("we-push-{0}.log" -f [guid]::NewGuid().ToString('N'))
+    $pushLogUser = Join-Path ([IO.Path]::GetTempPath()) ("we-push-user-{0}.log" -f [guid]::NewGuid().ToString('N'))
+    $pushLogBad = Join-Path ([IO.Path]::GetTempPath()) ("we-push-bad-{0}.log" -f [guid]::NewGuid().ToString('N'))
+    $pushClients = @()
+    Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+    $pushClients += Start-PushClient -Token $script:Admin['X-Emby-Token'] -LogFile $pushLog -PluginKey 'regression-test-key'
+    $pushClients += Start-PushClient -Token $probe.Token -LogFile $pushLogUser -PluginKey ''
+    $pushClients += Start-PushClient -Token $script:Admin['X-Emby-Token'] -LogFile $pushLogBad -PluginKey 'wrong-key'
+    Start-Sleep 5
+    $first = @(Get-StatusPushes $pushLog)
+    Check 'Subscribing with the plugin key sends the current status straight away' (($first.Count -ge 1) -and (@($first[0].Users | Where-Object { $_.UserId -eq $probe.Id }).Count -eq 1)) "pushes=$($first.Count)"
+    $count = $first.Count
+    Get-Status 'POST' '/WatchingEye/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 10 } | Out-Null
+    Start-Sleep 3
+    $after = @(Get-StatusPushes $pushLog)
+    $row = $after[-1].Users | Where-Object { $_.UserId -eq $probe.Id }
+    Check 'An extension is pushed immediately (no polling)' (($after.Count -gt $count) -and ($row.CreditSecondsDaily -eq 600)) "pushes=$($after.Count) credit=$($row.CreditSecondsDaily)"
+    $count = $after.Count
+    Get-Status 'POST' '/WatchingEye/TimeOutUser' $script:Admin @{ UserId = $probe.Id; Minutes = 30 } | Out-Null
+    Start-Sleep 3
+    $after = @(Get-StatusPushes $pushLog)
+    $row = $after[-1].Users | Where-Object { $_.UserId -eq $probe.Id }
+    Check 'A time-out is pushed immediately and reports BlockReason' (($after.Count -gt $count) -and ($row.BlockReason -eq 'TimedOut') -and (([datetimeoffset]$row.TimeOutUntil).UtcDateTime -gt [datetime]::UtcNow)) "BlockReason=$($row.BlockReason)"
+    Get-Status 'POST' '/WatchingEye/ClearTimeOut' $script:Admin @{ UserId = $probe.Id } | Out-Null
+    Start-Sleep 3
+    $row = (@(Get-StatusPushes $pushLog))[-1].Users | Where-Object { $_.UserId -eq $probe.Id }
+    Check 'Ending the time-out is pushed (BlockReason back to Allowed)' ($row.BlockReason -eq 'Allowed') "BlockReason=$($row.BlockReason)"
+    $versions = @(Get-StatusPushes $pushLog | ForEach-Object { [int64]$_.Version })
+    Check 'Push versions only ever grow' ((@(1..($versions.Count - 1) | Where-Object { $versions[$_] -le $versions[$_ - 1] })).Count -eq 0) "versions=$($versions -join ',')"
+    $userPushes = @(Get-StatusPushes $pushLogUser)
+    Check 'A normal user without the key gets an error and no status' (($userPushes.Count -ge 1) -and ($userPushes[0].Error -match 'Unauthorized') -and (@($userPushes[0].Users).Count -eq 0) -and (@($userPushes | Where-Object { @($_.Users).Count -gt 0 }).Count -eq 0))
+    $badPushes = @(Get-StatusPushes $pushLogBad)
+    Check 'A wrong plugin key gets an error and no status' (($badPushes.Count -ge 1) -and ($badPushes[0].Error -match 'Unauthorized') -and (@($badPushes | Where-Object { @($_.Users).Count -gt 0 }).Count -eq 0))
+    foreach ($pc in $pushClients) { if ($pc) { Stop-Process -Id $pc.Id -Force -ErrorAction SilentlyContinue } }
+    Remove-Item -LiteralPath $pushLog, $pushLogUser, $pushLogBad -Force -ErrorAction SilentlyContinue
+    Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+
     Write-Host "== Configuration clamping"
     $cfg = Get-PluginConfig
     $cfg.LimitedUsers[0].ResetTimeOfDayHours = 100000000
@@ -101,7 +149,7 @@ try {
         $cfg.LimitedUsers[0].EnablePerDayLimits = $false
         Save-PluginConfig $cfg
         $row = Get-LimitedStatus $probe
-        $expectedFields = @('UserId', 'Username', 'DailyLimitMinutes', 'WeeklyLimitHours', 'MonthlyLimitHours', 'YearlyLimitHours', 'SecondsWatchedDaily', 'SecondsWatchedWeekly', 'SecondsWatchedMonthly', 'SecondsWatchedYearly', 'CreditSecondsDaily', 'CreditSecondsWeekly', 'CreditSecondsMonthly', 'CreditSecondsYearly', 'TimeOutUntil', 'EffectiveDailyLimitMinutes', 'IsEnabled')
+        $expectedFields = @('UserId', 'Username', 'DailyLimitMinutes', 'WeeklyLimitHours', 'MonthlyLimitHours', 'YearlyLimitHours', 'SecondsWatchedDaily', 'SecondsWatchedWeekly', 'SecondsWatchedMonthly', 'SecondsWatchedYearly', 'CreditSecondsDaily', 'CreditSecondsWeekly', 'CreditSecondsMonthly', 'CreditSecondsYearly', 'TimeOutUntil', 'EffectiveDailyLimitMinutes', 'IsEnabled', 'BlockReason')
         $missing = @($expectedFields | Where-Object { $row.PSObject.Properties.Name -notcontains $_ })
         Check 'Status contains every field the Android app reads plus the new ones' ($missing.Count -eq 0) "missing=[$($missing -join ',')]"
         Check 'Effective daily limit equals the daily limit' ($row.EffectiveDailyLimitMinutes -eq 60) "value=$($row.EffectiveDailyLimitMinutes)"

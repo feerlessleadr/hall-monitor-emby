@@ -50,6 +50,12 @@ public class PublicApiService : IService, IRequiresRequest
 		ThrowIfError(WatchTimeManager.ReduceTimeForUser(request.UserId, request.Minutes));
 	}
 
+	public void Post(PublicStopStreamRequest request)
+	{
+		EnsureApiKeyValid();
+		ThrowIfError(WatchTimeManager.StopStreamForUser(request.UserId));
+	}
+
 	public void Post(PublicTimeOutUserRequest request)
 	{
 		EnsureApiKeyValid();

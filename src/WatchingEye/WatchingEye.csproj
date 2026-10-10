@@ -9,6 +9,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="WatchingEye.Images.logo.jpg" />

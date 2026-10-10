@@ -665,6 +665,68 @@ public static class WatchTimeManager
 		}
 	}
 
+	/// <summary>What the user is playing now, taken from Emby's own session list; null when nothing is playing.</summary>
+	private static NowPlayingInfo? BuildNowPlaying(string userId)
+	{
+		if (_sessionManager == null || string.IsNullOrEmpty(userId))
+		{
+			return null;
+		}
+		SessionInfo session = _sessionManager.Sessions.FirstOrDefault((SessionInfo s) => string.Equals(s.UserId, userId, StringComparison.OrdinalIgnoreCase) && s.NowPlayingItem != null);
+		if (session == null)
+		{
+			return null;
+		}
+		return new NowPlayingInfo
+		{
+			SessionId = LogSanitizer.Clean(session.Id, 64),
+			ItemId = LogSanitizer.Clean(session.NowPlayingItem.Id, 64),
+			ItemName = LogSanitizer.CleanText(session.NowPlayingItem.Name),
+			ItemType = LogSanitizer.Clean(session.NowPlayingItem.Type, 32),
+			RunTimeTicks = session.NowPlayingItem.RunTimeTicks.GetValueOrDefault(),
+			PositionTicks = session.PlayState?.PositionTicks ?? 0L,
+			IsPaused = session.PlayState?.IsPaused ?? false,
+			Client = LogSanitizer.CleanText(session.Client),
+			DeviceName = LogSanitizer.CleanText(session.DeviceName)
+		};
+	}
+
+	/// <summary>Stops whatever a listed user is playing now (the app's "Stop stream"). It does not block them from starting again.</summary>
+	public static string? StopStreamForUser(string userId)
+	{
+		string? text = ResolveListedUser(userId, out string canonicalId);
+		if (text != null)
+		{
+			return text;
+		}
+		ISessionManager sessionManager = _sessionManager;
+		if (sessionManager == null)
+		{
+			return "The plugin is not running yet.";
+		}
+		List<SessionInfo> list = sessionManager.Sessions.Where((SessionInfo s) => string.Equals(s.UserId, canonicalId, StringComparison.OrdinalIgnoreCase) && s.NowPlayingItem != null).ToList();
+		foreach (SessionInfo session in list)
+		{
+			string sessionId = session.Id;
+			Task.Run(async () =>
+			{
+				try
+				{
+					await sessionManager.SendPlaystateCommand((string)null, sessionId, new PlaystateRequest
+					{
+						Command = (PlaystateCommand)0
+					}, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: false);
+				}
+				catch (Exception ex)
+				{
+					_logger?.ErrorException("[WatchTimeManager] Error stopping a stream on request for user " + LogSanitizer.Clean(canonicalId) + ".", ex, Array.Empty<object>());
+				}
+			});
+		}
+		_logger?.Info($"[WatchTimeManager] Stream stop requested for user {LogSanitizer.Clean(canonicalId)} ({list.Count} session(s)).", Array.Empty<object>());
+		return null;
+	}
+
 	public static async Task SendBlockNotificationToUser(string userId, PlaybackBlockReason reason)
 	{
 		if (_sessionManager == null)
@@ -729,7 +791,8 @@ public static class WatchTimeManager
 				BlockReason = GetPlaybackBlockReason(limitedUser.UserId).ToString(),
 				SecondsRemaining = remaining.Seconds,
 				LimitingPeriod = remaining.Period,
-				LimitingAllowedSeconds = remaining.AllowedSeconds
+				LimitingAllowedSeconds = remaining.AllowedSeconds,
+				NowPlaying = BuildNowPlaying(limitedUser.UserId)
 			});
 		}
 		return list;

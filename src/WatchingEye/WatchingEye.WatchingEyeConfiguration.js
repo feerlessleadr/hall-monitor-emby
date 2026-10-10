@@ -104,6 +104,12 @@
                     toast({ type: 'error', text: 'Please save or cancel the user you are currently editing.' });
                     return;
                 }
+                const publicApiOn = view.querySelector('#chkEnablePublicApi').checked;
+                const apiKeyText = (view.querySelector('#txtApiKey').value || '').trim();
+                if (publicApiOn && apiKeyText.length > 0 && apiKeyText.length < 24) {
+                    toast({ type: 'error', text: 'The API key must be at least 24 characters when the Public API is enabled. Click Generate New Key.' });
+                    return;
+                }
                 this.saveData(view);
                 return false;
             });

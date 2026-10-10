@@ -84,9 +84,9 @@ function Send-PlaybackReport {
 
 # Starts tools\ws-push-client.ps1 (the app's live connection) hidden and returns the process; messages go to $LogFile.
 function Start-PushClient {
-    param([string]$Token, [string]$LogFile, [string]$PluginKey = '', [switch]$Sessions)
+    param([string]$Token, [string]$LogFile, [string]$PluginKey = "", [int]$Starts = 1, [switch]$Sessions)
     $script = Join-Path $PSScriptRoot 'ws-push-client.ps1'
-    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$script`" -Token $Token -Out `"$LogFile`" -PluginKey `"$PluginKey`""
+    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$script`" -Token $Token -Out `"$LogFile`" -PluginKey `"$PluginKey`" -Starts $Starts"
     if ($Sessions) { $arguments += ' -Sessions' }
     return Start-Process powershell -PassThru -WindowStyle Hidden -ArgumentList $arguments
 }

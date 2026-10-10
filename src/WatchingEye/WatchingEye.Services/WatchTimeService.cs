@@ -26,6 +26,11 @@ public class WatchTimeService : IService
 		ThrowIfError(WatchTimeManager.ReduceTimeForUser(request.UserId, request.Minutes));
 	}
 
+	public void Post(StopStreamRequest request)
+	{
+		ThrowIfError(WatchTimeManager.StopStreamForUser(request.UserId));
+	}
+
 	public object Get(GetLimitedUsersStatusRequest request)
 	{
 		return WatchTimeManager.GetLimitedUsersStatus();

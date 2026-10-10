@@ -41,10 +41,10 @@ try {
     $config = Get-PluginConfig
     $config.EnableWatchTimeLimiter = $true
     $config.EnablePublicApi = $true
-    $config.ApiKey = 'regression-test-key'
+    $config.ApiKey = 'regression-test-key-0123456789'
     $config | Add-Member -NotePropertyName LimitedUsers -NotePropertyValue @((New-LimitedUserEntry -User $probe -DailyMinutes 180)) -Force
     Save-PluginConfig $config
-    $key = @{ 'X-WatchingEye-Api-Key' = 'regression-test-key' }
+    $key = @{ 'X-WatchingEye-Api-Key' = 'regression-test-key-0123456789' }
 
     Write-Host "== Authorization"
     foreach ($route in @(@('GET', '/WatchingEye/LimitedUsersStatus'), @('GET', '/WatchingEye/GetLogEvents'), @('POST', '/WatchingEye/ClearLogs'), @('POST', '/WatchingEye/ExtendTime'), @('POST', '/WatchingEye/TimeOutUser'))) {
@@ -96,7 +96,7 @@ try {
     $pushLogBad = Join-Path ([IO.Path]::GetTempPath()) ("we-push-bad-{0}.log" -f [guid]::NewGuid().ToString('N'))
     $pushClients = @()
     Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
-    $pushClients += Start-PushClient -Token $script:Admin['X-Emby-Token'] -LogFile $pushLog -PluginKey 'regression-test-key'
+    $pushClients += Start-PushClient -Token $script:Admin['X-Emby-Token'] -LogFile $pushLog -PluginKey 'regression-test-key-0123456789'
     $pushClients += Start-PushClient -Token $probe.Token -LogFile $pushLogUser -PluginKey ''
     $pushClients += Start-PushClient -Token $script:Admin['X-Emby-Token'] -LogFile $pushLogBad -PluginKey 'wrong-key'
     Start-Sleep 5
@@ -128,6 +128,61 @@ try {
     Remove-Item -LiteralPath $pushLog, $pushLogUser, $pushLogBad -Force -ErrorAction SilentlyContinue
     Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
 
+    Write-Host "== Security hardening (review follow-up)"
+    $shortCfg = Get-PluginConfig; $shortCfg.EnablePublicApi = $true; $shortCfg.ApiKey = 'short-key'
+    $shortCode = Get-Status 'POST' "/Plugins/$($script:PluginId)/Configuration" $script:Admin $shortCfg
+    Check 'A Public API key shorter than 24 characters is refused on save' (($shortCode -ge 400) -and ($shortCode -lt 500)) "HTTP $shortCode"
+    Check 'The refused short key was not saved' ((Get-PluginConfig).ApiKey -eq 'regression-test-key-0123456789')
+    $oneLog = Join-Path ([IO.Path]::GetTempPath()) ("we-one-{0}.log" -f [guid]::NewGuid().ToString('N'))
+    $oneClient = Start-PushClient -Token $script:Admin['X-Emby-Token'] -LogFile $oneLog -PluginKey 'regression-test-key-0123456789' -Starts 5
+    Start-Sleep 5
+    $onePushes = @(Get-StatusPushes $oneLog).Count
+    Stop-Process -Id $oneClient.Id -Force -ErrorAction SilentlyContinue
+    Check 'Five subscriptions on one connection produce one push, not five' ($onePushes -eq 1) "pushes=$onePushes"
+    $reLog = Join-Path ([IO.Path]::GetTempPath()) ("we-re-{0}.log" -f [guid]::NewGuid().ToString('N'))
+    $reClient = Start-PushClient -Token $script:Admin['X-Emby-Token'] -LogFile $reLog -PluginKey 'regression-test-key-0123456789'
+    Start-Sleep 4
+    $firstRe = @(Get-StatusPushes $reLog)
+    Check 'The subscription works while the Public API is on' (($firstRe.Count -ge 1) -and (@($firstRe[0].Users).Count -ge 1))
+    $cfg = Get-PluginConfig; $cfg.EnablePublicApi = $false; Save-PluginConfig $cfg
+    Start-Sleep 3
+    $lastRe = (@(Get-StatusPushes $reLog))[-1]
+    Check 'Turning the Public API off ends the open subscription at once' (($lastRe.Error -match 'Access ended') -and (@($lastRe.Users).Count -eq 0)) "error=[$($lastRe.Error)]"
+    $cfg = Get-PluginConfig; $cfg.EnablePublicApi = $true; Save-PluginConfig $cfg
+    Start-Sleep 3
+    $lastRe2 = (@(Get-StatusPushes $reLog))[-1]
+    Check 'An ended subscription does not restart by itself' ($lastRe2.Error -match 'Access ended')
+    Stop-Process -Id $reClient.Id -Force -ErrorAction SilentlyContinue
+
+    Write-Host "== What is playing, and Stop stream (so the app needs no Emby administrator key)"
+    $nowLog = Join-Path ([IO.Path]::GetTempPath()) ("we-now-{0}.log" -f [guid]::NewGuid().ToString('N'))
+    $stopLog = Join-Path ([IO.Path]::GetTempPath()) ("we-stop-{0}.log" -f [guid]::NewGuid().ToString('N'))
+    Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+    Invoke-RestMethod "$($script:Api)/Sessions/Capabilities/Full?DeviceId=$($probe.DeviceId)" -Method Post -Headers $viaProbe -ContentType 'application/json' -Body (@{ PlayableMediaTypes = @('Video', 'Audio'); SupportedCommands = @('DisplayMessage'); SupportsMediaControl = $true } | ConvertTo-Json) | Out-Null
+    $stopListener = Start-Process powershell -PassThru -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $PSScriptRoot 'ws-listen.ps1')`" -Token $($probe.Token) -DeviceId $($probe.DeviceId) -Out `"$stopLog`""
+    $nowClient = Start-PushClient -Token $script:Admin['X-Emby-Token'] -LogFile $nowLog -PluginKey 'regression-test-key-0123456789'
+    Start-Sleep 4
+    Send-PlaybackReport $probe '/Sessions/Playing' 'sec-play' 0
+    Start-Sleep 3
+    Send-PlaybackReport $probe '/Sessions/Playing/Progress' 'sec-play' 120000000
+    Start-Sleep 3
+    $nowRow = (@(Get-StatusPushes $nowLog))[-1].Users | Where-Object { $_.UserId -eq $probe.Id }
+    Check 'A push reports what the user is playing (item, session, position)' (($null -ne $nowRow.NowPlaying) -and ($nowRow.NowPlaying.ItemName.Length -gt 0) -and ($nowRow.NowPlaying.SessionId.Length -gt 0) -and ($nowRow.NowPlaying.PositionTicks -ge 100000000)) "item=[$($nowRow.NowPlaying.ItemName)] position=$($nowRow.NowPlaying.PositionTicks)"
+    Check 'StopStream refuses an unlisted user (400) and a normal user (403)' (((Get-Status 'POST' '/WatchingEye/StopStream' $script:Admin @{ UserId = 'someone-else' }) -eq 400) -and ((Get-Status 'POST' '/WatchingEye/StopStream' $viaProbe @{ UserId = $probe.Id }) -eq 403))
+    Check 'Public StopStream needs the plugin key' ((Get-Status 'POST' '/WatchingEye/Public/StopStream' $script:Admin @{ UserId = $probe.Id }) -eq 403)
+    $stopMark = @(Get-Content -LiteralPath $stopLog -ErrorAction SilentlyContinue).Count
+    $stopCode = Get-Status 'POST' '/WatchingEye/Public/StopStream' ($script:Admin + $key) @{ UserId = $probe.Id }
+    Start-Sleep 3
+    $stopLines = @(Get-Content -LiteralPath $stopLog -ErrorAction SilentlyContinue | Select-Object -Skip $stopMark)
+    Check 'Public StopStream with the key sends a Stop command to the user''s player' (($stopCode -eq 204) -and (@($stopLines | Where-Object { $_ -match '"Command":"Stop"' }).Count -ge 1)) "HTTP $stopCode"
+    Send-PlaybackReport $probe '/Sessions/Playing/Stopped' 'sec-play' 120000000
+    Start-Sleep 3
+    $endRow = (@(Get-StatusPushes $nowLog))[-1].Users | Where-Object { $_.UserId -eq $probe.Id }
+    Check 'Stopping playback is pushed (nothing playing any more)' ($null -eq $endRow.NowPlaying)
+    foreach ($p in @($nowClient, $stopListener)) { if ($p) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
+    Remove-Item -LiteralPath $oneLog, $reLog, $nowLog, $stopLog -Force -ErrorAction SilentlyContinue
+    Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+
     Write-Host "== Configuration clamping"
     $cfg = Get-PluginConfig
     $cfg.LimitedUsers[0].ResetTimeOfDayHours = 100000000
@@ -149,7 +204,7 @@ try {
         $cfg.LimitedUsers[0].EnablePerDayLimits = $false
         Save-PluginConfig $cfg
         $row = Get-LimitedStatus $probe
-        $expectedFields = @('UserId', 'Username', 'DailyLimitMinutes', 'WeeklyLimitHours', 'MonthlyLimitHours', 'YearlyLimitHours', 'SecondsWatchedDaily', 'SecondsWatchedWeekly', 'SecondsWatchedMonthly', 'SecondsWatchedYearly', 'CreditSecondsDaily', 'CreditSecondsWeekly', 'CreditSecondsMonthly', 'CreditSecondsYearly', 'TimeOutUntil', 'EffectiveDailyLimitMinutes', 'IsEnabled', 'BlockReason', 'SecondsRemaining', 'LimitingPeriod', 'LimitingAllowedSeconds')
+        $expectedFields = @('UserId', 'Username', 'DailyLimitMinutes', 'WeeklyLimitHours', 'MonthlyLimitHours', 'YearlyLimitHours', 'SecondsWatchedDaily', 'SecondsWatchedWeekly', 'SecondsWatchedMonthly', 'SecondsWatchedYearly', 'CreditSecondsDaily', 'CreditSecondsWeekly', 'CreditSecondsMonthly', 'CreditSecondsYearly', 'TimeOutUntil', 'EffectiveDailyLimitMinutes', 'IsEnabled', 'BlockReason', 'SecondsRemaining', 'LimitingPeriod', 'LimitingAllowedSeconds', 'ApiLevel')
         $missing = @($expectedFields | Where-Object { $row.PSObject.Properties.Name -notcontains $_ })
         Check 'Status contains every field the Android app reads plus the new ones' ($missing.Count -eq 0) "missing=[$($missing -join ',')]"
         Check 'Effective daily limit equals the daily limit' ($row.EffectiveDailyLimitMinutes -eq 60) "value=$($row.EffectiveDailyLimitMinutes)"

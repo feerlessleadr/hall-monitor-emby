@@ -92,6 +92,21 @@ public static class ApiKeyGate
 		}
 	}
 
+	/// <summary>
+	/// True while the Public API is still enabled and <paramref name="suppliedKey"/> is still the configured key. Unlike
+	/// <see cref="Validate"/> it never counts a failure, so a live connection can re-check itself on every push
+	/// (a changed key or a disabled Public API ends the access at once).
+	/// </summary>
+	public static bool StillValid(string? suppliedKey)
+	{
+		PluginConfiguration pluginConfiguration = ((BasePlugin<PluginConfiguration>)(object)Plugin.Instance)?.Configuration;
+		if (pluginConfiguration == null || !pluginConfiguration.EnablePublicApi || string.IsNullOrWhiteSpace(pluginConfiguration.ApiKey) || string.IsNullOrWhiteSpace(suppliedKey))
+		{
+			return false;
+		}
+		return KeysMatch(suppliedKey, pluginConfiguration.ApiKey);
+	}
+
 	/// <summary>Throws <see cref="SecurityException"/> unless the Public API is enabled and <paramref name="suppliedKey"/> is the configured key.</summary>
 	public static void Validate(string? suppliedKey, string client)
 	{

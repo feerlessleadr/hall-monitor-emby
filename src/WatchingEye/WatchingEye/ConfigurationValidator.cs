@@ -17,6 +17,19 @@ public static class ConfigurationValidator
 
 	public const int MaxApiKeyLength = 128;
 
+	/// <summary>The key is the only secret protecting the live status push, so a short guessable one is not accepted.</summary>
+	public const int MinApiKeyLength = 24;
+
+	/// <summary>Returns an error message when the Public API is enabled with a key shorter than <see cref="MinApiKeyLength"/>.</summary>
+	public static string? FindInvalidApiKey(PluginConfiguration config)
+	{
+		if (config != null && config.EnablePublicApi && !string.IsNullOrWhiteSpace(config.ApiKey) && config.ApiKey.Trim().Length < MinApiKeyLength)
+		{
+			return $"The API key must be at least {MinApiKeyLength} characters when the Public API is enabled. Click Generate New Key.";
+		}
+		return null;
+	}
+
 	/// <summary>
 	/// Returns an error message when an enabled limit is zero or blank. A limit of 0 would silently mean
 	/// "no limit", so such a configuration is rejected instead of saved.

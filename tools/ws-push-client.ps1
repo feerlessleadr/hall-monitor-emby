@@ -9,6 +9,7 @@ param(
     [Parameter(Mandatory)][string]$Token,
     [Parameter(Mandatory)][string]$Out,
     [string]$PluginKey = '',
+    [int]$Starts = 1,
     [switch]$Sessions,
     [string]$DeviceId = 'we-push-client',
     [string]$BaseHost = 'localhost:8096'
@@ -23,7 +24,7 @@ function Send-Text([string]$Text) {
     $bytes = [Text.Encoding]::UTF8.GetBytes($Text)
     $socket.SendAsync([ArraySegment[byte]]$bytes, 'Text', $true, [Threading.CancellationToken]::None).Wait()
 }
-Send-Text ('{"MessageType":"WatchingEyeStatusStart","Data":"0,30000,' + $PluginKey + '"}')
+for ($startIndex = 0; $startIndex -lt $Starts; $startIndex++) { Send-Text ('{"MessageType":"WatchingEyeStatusStart","Data":"0,30000,' + $PluginKey + '"}') }
 if ($Sessions) { Send-Text '{"MessageType":"SessionsStart","Data":"0,1500"}' }
 
 $buffer = New-Object byte[] 1048576

@@ -19,6 +19,23 @@ per-day limits, allowed time windows, extra time, and time-outs. Only users list
 Copy `src/WatchingEye/bin/Release/net6.0/WatchingEye.dll` to the Emby server's `plugins` folder and restart Emby.
 Back up the existing plugin settings (`programdata/plugins/configurations/WatchingEye*`) first.
 
+## Verify a download
+Releases are built by GitHub Actions and come with signed build provenance. To check that a downloaded `WatchingEye.dll`
+really was built from this repository (needs GitHub's `gh` tool):
+
+    gh attestation verify WatchingEye.dll --repo feerlessleadr/watching-eye-emby
+
+The `.sha256` file next to the DLL only detects a damaged download; the attestation is what proves where it came from.
+Build with the exact packages recorded in `src/WatchingEye/packages.lock.json`: `dotnet restore src/WatchingEye --locked-mode`.
+
+## Using the Android app safely
+- The app needs the plugin key (Public API tab) and an Emby **token**. Prefer the token of an ordinary, non-administrator
+  Emby user (the app can sign in for you; only the token is kept) over an administrator API key: with plugin 1.9 or newer the
+  app needs nothing else, so a lost phone does not hand over your server.
+- The plugin key must be at least 24 characters (the page's **Generate New Key** makes 64). Short keys are refused on save.
+- Behind a reverse proxy, tell Emby the proxy's address (Settings -> Network -> known proxies) and allow websockets,
+  otherwise all clients look like the proxy: a few wrong keys can lock out the app, and the live updates cannot connect.
+
 ## Documentation
 - `PROGRESS.md` - current state, decision log, issues and workarounds, security review summary, backlog
 - `TESTING.md` - how to run the regression suite (`tools/Run-RegressionTests.ps1`) against a test server

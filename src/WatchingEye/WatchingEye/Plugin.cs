@@ -62,6 +62,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 			{
 				throw new ArgumentException(invalidLimit);
 			}
+			string? invalidKey = ConfigurationValidator.FindInvalidApiKey(pluginConfiguration);
+			if (invalidKey != null)
+			{
+				throw new ArgumentException(invalidKey);
+			}
 			ConfigurationValidator.Normalize(pluginConfiguration);
 			pluginConfiguration.ConfigurationVersion = Guid.NewGuid().ToString();
 		}
@@ -93,6 +98,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 		if (startupLimitProblem != null)
 		{
 			LogWarning("Saved configuration has an enabled limit of 0, which means no limit: " + startupLimitProblem + " Fix it on the plugin page.");
+		}
+		string? startupKeyProblem = ConfigurationValidator.FindInvalidApiKey(startupConfig);
+		if (startupKeyProblem != null)
+		{
+			LogWarning("Saved configuration: " + startupKeyProblem + " The key still works for now, but the next save will be refused until it is replaced.");
 		}
 		ConfigurationValidator.Normalize(startupConfig);
 		InAppNotificationService.Start(_logger, _sessionManager);

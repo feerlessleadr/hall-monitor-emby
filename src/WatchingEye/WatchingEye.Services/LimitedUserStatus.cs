@@ -51,4 +51,10 @@ public class LimitedUserStatus
 
 	/// <summary>Total seconds allowed in that period (the limit plus any extra time).</summary>
 	public double LimitingAllowedSeconds { get; set; }
+
+	/// <summary>What the user is playing right now (null when nothing is playing).</summary>
+	public NowPlayingInfo? NowPlaying { get; set; }
+
+	/// <summary>2 from plugin 1.9: the status itself says what is playing, so a missing NowPlaying means nothing is playing.</summary>
+	public int ApiLevel { get; set; } = 2;
 }

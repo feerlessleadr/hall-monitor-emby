@@ -24,6 +24,9 @@ public static class PlaybackMonitor
 			_sessionManager = sessionManager;
 			_logger = logger;
 			_sessionManager.PlaybackStart += OnPlaybackStart;
+			_sessionManager.PlaybackStart += OnPlaybackStartedPush;
+			_sessionManager.PlaybackProgress += OnPlaybackProgressPush;
+			_sessionManager.PlaybackStopped += OnPlaybackStoppedPush;
 			_isRunning = true;
 		}
 	}
@@ -33,8 +36,27 @@ public static class PlaybackMonitor
 		if (_isRunning && _sessionManager != null)
 		{
 			_sessionManager.PlaybackStart -= OnPlaybackStart;
+			_sessionManager.PlaybackStart -= OnPlaybackStartedPush;
+			_sessionManager.PlaybackProgress -= OnPlaybackProgressPush;
+			_sessionManager.PlaybackStopped -= OnPlaybackStoppedPush;
 			_isRunning = false;
 		}
+	}
+
+	// Connected apps see what is playing (and pauses, stops) through the live status push.
+	private static void OnPlaybackStartedPush(object? sender, PlaybackProgressEventArgs e)
+	{
+		StatusPushListener.RequestPushAfterPlaybackEvent();
+	}
+
+	private static void OnPlaybackProgressPush(object? sender, PlaybackProgressEventArgs e)
+	{
+		StatusPushListener.RequestPushAfterPlaybackEvent();
+	}
+
+	private static void OnPlaybackStoppedPush(object? sender, PlaybackStopEventArgs e)
+	{
+		StatusPushListener.RequestPushAfterPlaybackEvent();
 	}
 
 	private static async void OnPlaybackStart(object? sender, PlaybackProgressEventArgs e)

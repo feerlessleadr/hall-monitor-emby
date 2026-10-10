@@ -183,7 +183,7 @@
                         <h2 style="margin-top: 0;">External API Control</h2>
                         <div class="checkboxContainer">
                             <label><input is="emby-checkbox" type="checkbox" id="chkEnablePublicApi" data-config-key="EnablePublicApi" /><span>Enable Public API</span></label>
-                            <div class="fieldDescription">Allow control of the watch time limiter via external requests using the API key below.</div>
+                            <div class="fieldDescription">Allow control of the watch time limiter via external requests using the API key below. The key must be at least 24 characters (use Generate New Key). If Emby sits behind a reverse proxy, set the proxy's address under Emby's network settings (known proxies): otherwise every client looks like the proxy and a few wrong keys can lock out everyone, including your app.</div>
                         </div>
                         <div class="inputContainer">
                             <input is="emby-input" type="text" id="txtApiKey" label="API Key:" data-config-key="ApiKey" readonly />
@@ -250,6 +250,12 @@
 
                         <hr style="margin: 2em 0;">
 
+                        <h3>POST /WatchingEye/Public/StopStream</h3>
+                        <p>Stops whatever a limited user is playing right now. It does not block them from starting again (use TimeOutUser for that). The status rows also report what is playing: <code>NowPlaying</code> (session, item, position, paused, client, device; absent when nothing plays) and <code>ApiLevel</code> (2 from plugin 1.9). Together they mean an app needs only the plugin key and the token of an ordinary Emby user, not an administrator key.</p>
+                        <p><strong>Request Body:</strong> <code>{ "UserId": "YOUR_USER_ID_HERE" }</code></p>
+
+                        <hr style="margin: 2em 0;">
+
                         <h3>POST /WatchingEye/Public/ReduceTime</h3>
                         <p>Takes back extra time previously added with ExtendTime (an "undo"). The extra time never goes below zero.</p>
                         <p><strong>Request Body:</strong> same as ExtendTime.</p>
@@ -257,7 +263,7 @@
                         <hr style="margin: 2em 0;">
 
                         <h3>Live updates (websocket push)</h3>
-                        <p>Instead of asking for the status over and over, an app can keep one connection open to Emby's websocket (<code>/embywebsocket?deviceId=...</code>, with the Emby key in the <code>X-Emby-Token</code> header) and send <code>{"MessageType":"WatchingEyeStatusStart","Data":"0,30000,YOUR_PLUGIN_KEY"}</code>. The plugin then sends <code>{"MessageType":"WatchingEyeStatus","Data":{"Version":..,"ServerTimeUtc":..,"Users":[ ...same rows as /Public/Status... ]}}</code> straight away, whenever anything changes (watch time, extend, time-out, reset, settings) and at least every 30 seconds. Without a valid key (and with the Public API disabled) the message carries only an <code>Error</code>. Send <code>WatchingEyeStatusStop</code> to unsubscribe.</p>
+                        <p>Instead of asking for the status over and over, an app can keep one connection open to Emby's websocket (<code>/embywebsocket?deviceId=...</code>, with the Emby key in the <code>X-Emby-Token</code> header) and send <code>{"MessageType":"WatchingEyeStatusStart","Data":"0,30000,YOUR_PLUGIN_KEY"}</code>. The plugin then sends <code>{"MessageType":"WatchingEyeStatus","Data":{"Version":..,"ServerTimeUtc":..,"Users":[ ...same rows as /Public/Status... ]}}</code> straight away, whenever anything changes (watch time, extend, time-out, reset, settings) and at least every 30 seconds. Without a valid key (and with the Public API disabled) the message carries only an <code>Error</code>. Send <code>WatchingEyeStatusStop</code> to unsubscribe. The permission is re-checked on every push (turning the Public API off or changing the key ends an open subscription at once), and each connection gets one subscription.</p>
 
                         <hr style="margin: 2em 0;">
 

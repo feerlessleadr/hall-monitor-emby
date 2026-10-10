@@ -24,6 +24,9 @@ It prints `[PASS]` / `[FAIL]` per check and exits with code 1 if anything failed
 | Authorization | non-admin refused (403) on admin routes; anonymous refused (401); non-admin cannot read the plugin config |
 | Public API | disabled -> refused; enabled -> works; wrong / missing key -> 403; no Emby login -> 401 |
 | Input validation | minutes out of range, unknown / oversized user ids, unknown period; credit never overflows; time-out with different-case id; time-out refused for unlisted user |
+| Undo (ReduceTime) | takes back part of an extension; never below zero; bad minutes / unknown user rejected; non-admin refused; public route needs the key |
+| Live push | subscribing sends the status at once; extend / time-out / clear are pushed immediately; versions only grow; a normal user without the key, and a wrong key, get only an error (uses `tools/ws-push-client.ps1`) |
+| Status contract | every field the app reads, including `BlockReason`, `SecondsRemaining`, `LimitingPeriod`, `LimitingAllowedSeconds` |
 | Configuration | out-of-range values are clamped; an enabled limit of 0 is refused (400) and not saved |
 | Enforcement | time counted; Stop + message at the limit; LimitReached event; new playback blocked while over limit; time-out message states the local end time |
 | Name sanitising | markup in a client name never reaches the event log |

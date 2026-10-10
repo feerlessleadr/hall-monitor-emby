@@ -2,7 +2,7 @@
 
 Living log for this fork. Sections: current state, decision log, issues and workarounds, test history, backlog.
 Detailed change history is in the git log (every behaviour change is its own commit).
-Last updated: 2026-10-09 (end of the recovery, hardening and Android-app sessions).
+Last updated: 2026-10-10 (live push, plugin 1.8.0.0 and Android app 1.5 added; see section 12).
 
 ## 1. Current state
 
@@ -21,7 +21,7 @@ Plugin GUID `e8c3b1b3-4f56-4f38-a28a-2e6c5a043007` and name "Watching Eye" are u
 
 **Build:** `dotnet build src/WatchingEye -c Release` -> `src/WatchingEye/bin/Release/net6.0/WatchingEye.dll`; copy that one file to Emby's `plugins` folder and restart. Dependency: NuGet `MediaBrowser.Server.Core` 4.9.1.90 (no Emby DLLs needed).
 **Tags:** `v1.6.8.0-recovered` (faithful rebuild), `v1.6.8.0-watchtime-only`, `v1.6.8.0-hardened`.
-**Status:** 40/40 regression checks pass on Emby 4.10.1.0 (`tools/Run-RegressionTests.ps1`, see `TESTING.md`). Not yet installed on the user's real server. Companion Android app: https://github.com/feerlessleadr/watching-eye-android-app (v1.4, signed releases built by GitHub Actions; section 8-10).
+**Status:** 53/53 regression checks pass on Emby 4.10.1.0 (`tools/Run-RegressionTests.ps1`, see `TESTING.md`; the 5-minute lockout check is skipped with `-SkipLockout`). Plugin version in the source is 1.8.0.0; the published release is v1.7.0.0 (tag-triggered workflow `.github/workflows/release.yml`; the user installs it on their real server with their own GitHub-repo downloader plugin). v1.8.0.0 is built and tested but not tagged yet. Companion Android app: https://github.com/feerlessleadr/watching-eye-android-app (v1.4, signed releases built by GitHub Actions; section 8-10).
 
 ## 2. Decision log
 
@@ -48,6 +48,13 @@ Plugin GUID `e8c3b1b3-4f56-4f38-a28a-2e6c5a043007` and name "Watching Eye" are u
 | 10-09 | Android app: auth in headers, local-time time-outs, clamped minutes, backoff after a 403; app repo got CI, a tag-triggered signed release workflow (secrets in GitHub, certificate fingerprint check), MIT license, history purge | user | See sections 8-10 |
 | 10-09 | App release process: bump `versionCode`/`versionName`, push, then push tag `v<versionName>`; first signed release is v1.4 | user | Tag must equal `v` + versionName or the workflow stops |
 | 10-09 | Plugin repo to be made public with a provenance / no-license / takedown notice and no LICENSE file | user asked to publish; assistant advised | The code is derived from a decompiled plugin by an unknown author, so no license can be granted for it (see section 11) |
+
+| 10-10 | Plugin release workflow: tag `v<AssemblyVersion>` builds the DLL and publishes it with a checksum; version bumped from 1.6.8.0 to 1.7.0.0 so updaters see it as newer; v1.7.0.0 published | user: "publish it" | The user installs/updates the plugin with a GitHub-repo downloader plugin on their production Emby |
+| 10-10 | App changes from polling to server push (plugin 1.8.0.0 `StatusPushListener` over Emby's websocket plus Emby's own `SessionsStart`); REST kept only as a fallback while the socket is down | user | Removes the 10-second refresh; the flicker itself was fixed earlier (redraw only changed cards) |
+| 10-10 | Push authorisation: administrator login, or the plugin API key with the Public API enabled (same lockout as the HTTP routes, shared in `ApiKeyGate`); the key travels in the websocket message, never in a URL | assistant | Status data is as sensitive as the Public routes |
+| 10-10 | New `ReduceTime` routes (admin and public) take back extra time, floored at zero | user asked for Undo | Undo for Extend |
+| 10-10 | Status gained `BlockReason`, `SecondsRemaining`, `LimitingPeriod`, `LimitingAllowedSeconds` (additive) | assistant | Lets the app show an accurate countdown for the closest enabled limit and alert on limits |
+| 10-10 | App 1.5: card redesign, quick +15/+30/+60, custom minutes, "End time-out + 30", confirmations, Undo snackbar, pull-to-refresh, live/updated indicator, light/dark theme, optional background alerts (foreground service + notification with add-time buttons, off by default), home-screen widget | user: "do all of these" | Background alerts need a foreground service with a permanent notification; widget refreshes at most every 30 minutes on its own |
 
 ## 3. Issues and workarounds log
 
@@ -132,3 +139,16 @@ The user wants to make this repository public (2026-10-09). Audit before publish
 **Known limitation of that audit:** one earlier commit (8a32767) mentions the path/alias of the user's release keystore in this log (scrubbed going forward; the keystore itself was never shared). It is harmless without the file and was not worth rewriting history for.
 **Legal position (advice given, accepted by the user's decision to publish):** the source is derived from decompiling a plugin whose author is unknown, so nobody can grant a license for that part. Decisions: no LICENSE file; README states provenance, "no license granted", a takedown / credit contact route, and non-affiliation with Emby; the original binary stays out. Residual risk: the original author could object; the response is to credit or remove promptly. If the user later wants a license, only the material added after the recovery (tests, scripts, docs, changes) could reasonably be licensed, and mixed ownership makes a blanket license wrong.
 **Suggested GitHub settings when going public:** Settings -> General -> Danger Zone -> Change visibility; then Advanced Security -> enable Secret scanning and Push protection; Actions -> General -> require approval for outside contributors; Rulesets -> protect `main` (restrict deletions, block force pushes) with a Repository-admin bypass; enable Dependabot alerts. This repository has no workflows or secrets today.
+
+## 12. Live push, plugin 1.8.0.0 and Android app 1.5 (2026-10-10)
+**Why:** the app polled every 10 s. The flicker was fixed first (only changed cards redraw, images reload only when they change, polling only while the screen is visible, one shared HTTP client, a banner instead of pop-ups when the server cannot be reached). Then the user asked for push.
+
+**How push works.** Emby's websocket is used as is: the app connects to `/embywebsocket` (token in the `X-Emby-Token` header) and sends two subscriptions. `SessionsStart` is Emby's own (sessions pushed when they change). `WatchingEyeStatusStart` is the plugin's (class `StatusPushListener`, built on Emby's `BasePeriodicWebSocketListener`): the plugin pushes the status list when watch time moves, on every extend/reduce/time-out/clear/reset, when settings are saved, and as a 30-second heartbeat. The app falls back to asking the server every 20 s only while the socket is down, reconnects by itself with a growing delay (1 s ... 60 s), treats 75 s of silence as a dead connection, and reconnects when the phone changes network.
+**Plugin side:** `ApiKeyGate` (shared key check and lockout), `StatusPushListener`, `ReduceTime` routes, status fields `BlockReason`, `SecondsRemaining`, `LimitingPeriod`, `LimitingAllowedSeconds`. An Emby admin API key connection has no user, so it cannot be recognised as an administrator on the socket; it needs the plugin key (as the app always has).
+**App side:** `StatusRepository` (one source of truth for the screen, the alert service and the widget), `LiveConnection`, `LiveMessages`, `AlertService` (optional foreground service, off by default; notification with +15/+30/+60 buttons when a user goes from allowed to over a limit), `WatchingEyeWidget`, new card layout, undo and confirmations, light/dark theme.
+
+**Tested:** plugin regression suite 53/53 on the test server (undo, push after extend/time-out/clear, unauthorised and wrong-key subscribers get only an error, status fields). App: 40 unit tests (4 skipped: need a server); on an Android emulator (API 37) against the test server: live updates, +15 and Undo, now-playing with ticking countdown, time-out and "End time-out + 30", background alert with the app on the home screen (and its +15 button), server stopped and restarted (banner, then back to Live automatically), widget placed on the home screen, light and dark theme. **Not tested:** a real phone, real battery behaviour of the background service (some phones kill it unless the app is excluded from battery optimisation), a reverse proxy in front of Emby (it must allow websockets), more than two users.
+
+**Issues found while testing (fixed):** the notification's +15 button failed with "can't reach the server" because the broadcast receiver re-read the encrypted settings; it now uses the settings the running service already holds. The emulator that was first used turned out to be shared with another project's app: tests moved to a separate, throw-away emulator, which was removed afterwards. A shell `sed` insert left a stray character again (see section 3): use the editor tool.
+**Test server cleanup:** test users, the throw-away Emby API key, and the plugin configuration were removed or reset after the UI tests.
+**Decisions still open:** tag plugin v1.8.0.0 and app v1.5 (needs the user's "publish it"); install the plugin update on the production server; battery-optimisation wording for the alerts setting.

@@ -89,7 +89,9 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 			new PluginPageInfo
 			{
 				Name = "HallMonitorConfiguration",
-				EmbeddedResourcePath = ((object)this).GetType().Namespace + ".HallMonitorConfiguration.html"
+				EmbeddedResourcePath = ((object)this).GetType().Namespace + ".HallMonitorConfiguration.html",
+				EnableInMainMenu = true,
+				MenuIcon = "timer"
 			},
 			new PluginPageInfo
 			{

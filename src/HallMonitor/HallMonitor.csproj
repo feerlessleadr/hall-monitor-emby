@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>HallMonitor</AssemblyName>
+    <RootNamespace>HallMonitor</RootNamespace>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>annotations</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
+    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="HallMonitor.Images.logo.jpg" />
+    <None Remove="HallMonitor.HallMonitorConfiguration.html" />
+    <None Remove="HallMonitor.HallMonitorConfiguration.js" />
+    <EmbeddedResource Include="HallMonitor.Images.logo.jpg" LogicalName="HallMonitor.Images.logo.jpg" />
+    <EmbeddedResource Include="HallMonitor.HallMonitorConfiguration.html" LogicalName="HallMonitor.HallMonitorConfiguration.html" />
+    <EmbeddedResource Include="HallMonitor.HallMonitorConfiguration.js" LogicalName="HallMonitor.HallMonitorConfiguration.js" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MediaBrowser.Server.Core" Version="4.9.1.90" />
+  </ItemGroup>
+</Project>

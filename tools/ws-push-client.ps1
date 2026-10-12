@@ -24,7 +24,7 @@ function Send-Text([string]$Text) {
     $bytes = [Text.Encoding]::UTF8.GetBytes($Text)
     $socket.SendAsync([ArraySegment[byte]]$bytes, 'Text', $true, [Threading.CancellationToken]::None).Wait()
 }
-for ($startIndex = 0; $startIndex -lt $Starts; $startIndex++) { Send-Text ('{"MessageType":"WatchingEyeStatusStart","Data":"0,30000,' + $PluginKey + '"}') }
+for ($startIndex = 0; $startIndex -lt $Starts; $startIndex++) { Send-Text ('{"MessageType":"HallMonitorStatusStart","Data":"0,30000,' + $PluginKey + '"}') }
 if ($Sessions) { Send-Text '{"MessageType":"SessionsStart","Data":"0,1500"}' }
 
 $buffer = New-Object byte[] 1048576

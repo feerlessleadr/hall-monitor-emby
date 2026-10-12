@@ -72,7 +72,7 @@ function Reset-PluginState {
     $config.ApiKey = ''
     $config | Add-Member -NotePropertyName LimitedUsers -NotePropertyValue @() -Force
     Save-PluginConfig $config
-    Invoke-RestMethod "$($script:Api)/WatchingEye/ClearLogs" -Method Post -Headers $script:Admin -ContentType 'application/json' -Body '{}' | Out-Null
+    Invoke-RestMethod "$($script:Api)/HallMonitor/ClearLogs" -Method Post -Headers $script:Admin -ContentType 'application/json' -Body '{}' | Out-Null
 }
 
 # Simulates a client reporting playback of an item (the plugin counts time from these reports).
@@ -94,6 +94,6 @@ function Start-PushClient {
 # Returns the parsed Hall Monitor status pushes (oldest first) from a push client's log file.
 function Get-StatusPushes {
     param([string]$LogFile)
-    $lines = @(Get-Content -LiteralPath $LogFile -ErrorAction SilentlyContinue | Where-Object { $_ -match '"MessageType":"WatchingEyeStatus"' })
+    $lines = @(Get-Content -LiteralPath $LogFile -ErrorAction SilentlyContinue | Where-Object { $_ -match '"MessageType":"HallMonitorStatus"' })
     return @($lines | ForEach-Object { ($_ -replace '^\S+ ', '') | ConvertFrom-Json } | ForEach-Object { $_.Data })
 }

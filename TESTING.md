@@ -5,7 +5,7 @@ throw-away user, change the plugin configuration, and restore the plugin to a cl
 
 ## One-time setup
 1. Install the Release DLL in the test server's `plugins` folder and restart Emby:
-   `dotnet build src/WatchingEye -c Release` -> copy `src/WatchingEye/bin/Release/net6.0/WatchingEye.dll`.
+   `dotnet build src/HallMonitor -c Release` -> copy `src/HallMonitor/bin/Release/net6.0/HallMonitor.dll`.
 2. Create an Emby **admin API key** (Dashboard -> API Keys) and save it, alone, in a text file.
    The scripts default to `%USERPROFILE%\.emby-spike-key`; use `-KeyFile` for another path. Never commit this file.
 3. The test library needs at least one item with id `15` (the scripts report playback of that item). Any media item works;

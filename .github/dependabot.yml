@@ -6,6 +6,6 @@ updates:
     schedule:
       interval: "weekly"
   - package-ecosystem: "nuget"
-    directory: "/src/WatchingEye"
+    directory: "/src/HallMonitor"
     schedule:
       interval: "weekly"

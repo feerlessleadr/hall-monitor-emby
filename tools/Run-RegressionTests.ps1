@@ -23,7 +23,7 @@ function Check {
     $tag = if ($Passed) { 'PASS' } else { 'FAIL' }
     Write-Host ("[{0}] {1} {2}" -f $tag, $Name, $Detail)
 }
-function Get-LimitedStatus { param($User) @(Invoke-RestMethod "$($script:Api)/WatchingEye/LimitedUsersStatus" -Headers $script:Admin) | ForEach-Object { $_ } | Where-Object { $_.UserId -eq $User.Id } | Select-Object -First 1 }
+function Get-LimitedStatus { param($User) @(Invoke-RestMethod "$($script:Api)/HallMonitor/LimitedUsersStatus" -Headers $script:Admin) | ForEach-Object { $_ } | Where-Object { $_.UserId -eq $User.Id } | Select-Object -First 1 }
 
 $probe = $null
 $probe2 = $null
@@ -44,10 +44,10 @@ try {
     $config.ApiKey = 'regression-test-key-0123456789'
     $config | Add-Member -NotePropertyName LimitedUsers -NotePropertyValue @((New-LimitedUserEntry -User $probe -DailyMinutes 180)) -Force
     Save-PluginConfig $config
-    $key = @{ 'X-WatchingEye-Api-Key' = 'regression-test-key-0123456789' }
+    $key = @{ 'X-HallMonitor-Api-Key' = 'regression-test-key-0123456789' }
 
     Write-Host "== Authorization"
-    foreach ($route in @(@('GET', '/WatchingEye/LimitedUsersStatus'), @('GET', '/WatchingEye/GetLogEvents'), @('POST', '/WatchingEye/ClearLogs'), @('POST', '/WatchingEye/ExtendTime'), @('POST', '/WatchingEye/TimeOutUser'))) {
+    foreach ($route in @(@('GET', '/HallMonitor/LimitedUsersStatus'), @('GET', '/HallMonitor/GetLogEvents'), @('POST', '/HallMonitor/ClearLogs'), @('POST', '/HallMonitor/ExtendTime'), @('POST', '/HallMonitor/TimeOutUser'))) {
         $code = Get-Status $route[0] $route[1] $viaProbe @{ UserId = $probe.Id; Minutes = 5 }
         Check "Non-admin is refused: $($route[0]) $($route[1])" ($code -eq 403) "HTTP $code"
     }
@@ -56,46 +56,46 @@ try {
 
     Write-Host "== Public API"
     $cfg = Get-PluginConfig; $cfg.EnablePublicApi = $false; Save-PluginConfig $cfg
-    Check 'API disabled -> correct key is refused' ((Get-Status 'GET' '/WatchingEye/Public/Status' ($script:Admin + $key)) -eq 403)
+    Check 'API disabled -> correct key is refused' ((Get-Status 'GET' '/HallMonitor/Public/Status' ($script:Admin + $key)) -eq 403)
     $cfg = Get-PluginConfig; $cfg.EnablePublicApi = $true; Save-PluginConfig $cfg
-    Check 'API enabled -> correct key works' ((Get-Status 'GET' '/WatchingEye/Public/Status' ($script:Admin + $key)) -eq 200)
-    Check 'Wrong key -> 403 (not 500)' ((Get-Status 'GET' '/WatchingEye/Public/Status' ($script:Admin + @{ 'X-WatchingEye-Api-Key' = 'wrong' })) -eq 403)
-    Check 'Missing key -> 403' ((Get-Status 'GET' '/WatchingEye/Public/Status' $script:Admin) -eq 403)
-    Check 'No Emby login at all -> 401' ((Get-Status 'GET' '/WatchingEye/Public/Status' $key) -eq 401)
+    Check 'API enabled -> correct key works' ((Get-Status 'GET' '/HallMonitor/Public/Status' ($script:Admin + $key)) -eq 200)
+    Check 'Wrong key -> 403 (not 500)' ((Get-Status 'GET' '/HallMonitor/Public/Status' ($script:Admin + @{ 'X-HallMonitor-Api-Key' = 'wrong' })) -eq 403)
+    Check 'Missing key -> 403' ((Get-Status 'GET' '/HallMonitor/Public/Status' $script:Admin) -eq 403)
+    Check 'No Emby login at all -> 401' ((Get-Status 'GET' '/HallMonitor/Public/Status' $key) -eq 401)
 
     Write-Host "== Input validation"
-    Check 'ExtendTime above the cap is rejected' ((Get-Status 'POST' '/WatchingEye/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 43201 }) -eq 400)
-    Check 'ExtendTime int.MaxValue is rejected' ((Get-Status 'POST' '/WatchingEye/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 2147483647 }) -eq 400)
-    Check 'ExtendTime zero/negative is rejected' ((Get-Status 'POST' '/WatchingEye/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = -5 }) -eq 400)
-    Check 'Unknown user id is rejected' ((Get-Status 'POST' '/WatchingEye/ExtendTime' $script:Admin @{ UserId = [guid]::NewGuid().ToString(); Minutes = 5 }) -eq 400)
-    Check 'Oversized user id is rejected' ((Get-Status 'POST' '/WatchingEye/ExtendTime' $script:Admin @{ UserId = ('x' * 100000); Minutes = 5 }) -eq 400)
-    Check 'Unknown period is rejected' ((Get-Status 'POST' '/WatchingEye/ExtendPeriodTime' $script:Admin @{ UserId = $probe.Id; Period = 'fortnightly'; Minutes = 5 }) -eq 400)
-    for ($i = 0; $i -lt 12; $i++) { Get-Status 'POST' '/WatchingEye/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 43200 } | Out-Null }
+    Check 'ExtendTime above the cap is rejected' ((Get-Status 'POST' '/HallMonitor/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 43201 }) -eq 400)
+    Check 'ExtendTime int.MaxValue is rejected' ((Get-Status 'POST' '/HallMonitor/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 2147483647 }) -eq 400)
+    Check 'ExtendTime zero/negative is rejected' ((Get-Status 'POST' '/HallMonitor/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = -5 }) -eq 400)
+    Check 'Unknown user id is rejected' ((Get-Status 'POST' '/HallMonitor/ExtendTime' $script:Admin @{ UserId = [guid]::NewGuid().ToString(); Minutes = 5 }) -eq 400)
+    Check 'Oversized user id is rejected' ((Get-Status 'POST' '/HallMonitor/ExtendTime' $script:Admin @{ UserId = ('x' * 100000); Minutes = 5 }) -eq 400)
+    Check 'Unknown period is rejected' ((Get-Status 'POST' '/HallMonitor/ExtendPeriodTime' $script:Admin @{ UserId = $probe.Id; Period = 'fortnightly'; Minutes = 5 }) -eq 400)
+    for ($i = 0; $i -lt 12; $i++) { Get-Status 'POST' '/HallMonitor/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 43200 } | Out-Null }
     $credit = (Get-LimitedStatus $probe).CreditSecondsDaily
     Check 'Repeated extends never overflow (credit stays positive and capped)' (($credit -gt 0) -and ($credit -le 315360000)) "credit=$credit s"
-    Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
-    $code = Get-Status 'POST' '/WatchingEye/TimeOutUser' $script:Admin @{ UserId = $probe.Id.ToUpper(); Minutes = 30 }
+    Get-Status 'POST' '/HallMonitor/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+    $code = Get-Status 'POST' '/HallMonitor/TimeOutUser' $script:Admin @{ UserId = $probe.Id.ToUpper(); Minutes = 30 }
     $timedOut = (Get-LimitedStatus $probe).TimeOutUntil
     Check 'Time-out works with a different-case user id' (($code -eq 204) -and (([datetimeoffset]$timedOut).UtcDateTime -gt [datetime]::UtcNow)) "HTTP $code until=$timedOut"
-    Get-Status 'POST' '/WatchingEye/ClearTimeOut' $script:Admin @{ UserId = $probe.Id } | Out-Null
-    Check 'Time-out refuses a user who is not in Limited Users' ((Get-Status 'POST' '/WatchingEye/TimeOutUser' $script:Admin @{ UserId = 'someone-else'; Minutes = 5 }) -eq 400)
+    Get-Status 'POST' '/HallMonitor/ClearTimeOut' $script:Admin @{ UserId = $probe.Id } | Out-Null
+    Check 'Time-out refuses a user who is not in Limited Users' ((Get-Status 'POST' '/HallMonitor/TimeOutUser' $script:Admin @{ UserId = 'someone-else'; Minutes = 5 }) -eq 400)
 
     Write-Host "== Undo (ReduceTime)"
-    Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
-    Get-Status 'POST' '/WatchingEye/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 10 } | Out-Null
-    Check 'ReduceTime takes back part of an extension' (((Get-Status 'POST' '/WatchingEye/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 4 }) -eq 204) -and ((Get-LimitedStatus $probe).CreditSecondsDaily -eq 360)) "credit=$((Get-LimitedStatus $probe).CreditSecondsDaily) s (expected 360)"
-    Get-Status 'POST' '/WatchingEye/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 43200 } | Out-Null
+    Get-Status 'POST' '/HallMonitor/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+    Get-Status 'POST' '/HallMonitor/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 10 } | Out-Null
+    Check 'ReduceTime takes back part of an extension' (((Get-Status 'POST' '/HallMonitor/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 4 }) -eq 204) -and ((Get-LimitedStatus $probe).CreditSecondsDaily -eq 360)) "credit=$((Get-LimitedStatus $probe).CreditSecondsDaily) s (expected 360)"
+    Get-Status 'POST' '/HallMonitor/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 43200 } | Out-Null
     Check 'ReduceTime never takes the credit below zero' ((Get-LimitedStatus $probe).CreditSecondsDaily -eq 0) "credit=$((Get-LimitedStatus $probe).CreditSecondsDaily)"
-    Check 'ReduceTime zero/over-cap/unknown user are rejected' (((Get-Status 'POST' '/WatchingEye/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 0 }) -eq 400) -and ((Get-Status 'POST' '/WatchingEye/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 43201 }) -eq 400) -and ((Get-Status 'POST' '/WatchingEye/ReduceTime' $script:Admin @{ UserId = 'nobody'; Minutes = 5 }) -eq 400))
-    Check 'Non-admin is refused: POST /WatchingEye/ReduceTime' ((Get-Status 'POST' '/WatchingEye/ReduceTime' $viaProbe @{ UserId = $probe.Id; Minutes = 5 }) -eq 403)
-    Check 'Public ReduceTime without the key is refused, with the key works' (((Get-Status 'POST' '/WatchingEye/Public/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 5 }) -eq 403) -and ((Get-Status 'POST' '/WatchingEye/Public/ReduceTime' ($script:Admin + $key) @{ UserId = $probe.Id; Minutes = 5 }) -eq 204))
+    Check 'ReduceTime zero/over-cap/unknown user are rejected' (((Get-Status 'POST' '/HallMonitor/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 0 }) -eq 400) -and ((Get-Status 'POST' '/HallMonitor/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 43201 }) -eq 400) -and ((Get-Status 'POST' '/HallMonitor/ReduceTime' $script:Admin @{ UserId = 'nobody'; Minutes = 5 }) -eq 400))
+    Check 'Non-admin is refused: POST /HallMonitor/ReduceTime' ((Get-Status 'POST' '/HallMonitor/ReduceTime' $viaProbe @{ UserId = $probe.Id; Minutes = 5 }) -eq 403)
+    Check 'Public ReduceTime without the key is refused, with the key works' (((Get-Status 'POST' '/HallMonitor/Public/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 5 }) -eq 403) -and ((Get-Status 'POST' '/HallMonitor/Public/ReduceTime' ($script:Admin + $key) @{ UserId = $probe.Id; Minutes = 5 }) -eq 204))
 
     Write-Host "== Live push (the app's connection)"
     $pushLog = Join-Path ([IO.Path]::GetTempPath()) ("we-push-{0}.log" -f [guid]::NewGuid().ToString('N'))
     $pushLogUser = Join-Path ([IO.Path]::GetTempPath()) ("we-push-user-{0}.log" -f [guid]::NewGuid().ToString('N'))
     $pushLogBad = Join-Path ([IO.Path]::GetTempPath()) ("we-push-bad-{0}.log" -f [guid]::NewGuid().ToString('N'))
     $pushClients = @()
-    Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+    Get-Status 'POST' '/HallMonitor/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
     $pushClients += Start-PushClient -Token $script:Admin['X-Emby-Token'] -LogFile $pushLog -PluginKey 'regression-test-key-0123456789'
     $pushClients += Start-PushClient -Token $probe.Token -LogFile $pushLogUser -PluginKey ''
     $pushClients += Start-PushClient -Token $script:Admin['X-Emby-Token'] -LogFile $pushLogBad -PluginKey 'wrong-key'
@@ -103,18 +103,18 @@ try {
     $first = @(Get-StatusPushes $pushLog)
     Check 'Subscribing with the plugin key sends the current status straight away' (($first.Count -ge 1) -and (@($first[0].Users | Where-Object { $_.UserId -eq $probe.Id }).Count -eq 1)) "pushes=$($first.Count)"
     $count = $first.Count
-    Get-Status 'POST' '/WatchingEye/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 10 } | Out-Null
+    Get-Status 'POST' '/HallMonitor/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 10 } | Out-Null
     Start-Sleep 3
     $after = @(Get-StatusPushes $pushLog)
     $row = $after[-1].Users | Where-Object { $_.UserId -eq $probe.Id }
     Check 'An extension is pushed immediately (no polling)' (($after.Count -gt $count) -and ($row.CreditSecondsDaily -eq 600)) "pushes=$($after.Count) credit=$($row.CreditSecondsDaily)"
     $count = $after.Count
-    Get-Status 'POST' '/WatchingEye/TimeOutUser' $script:Admin @{ UserId = $probe.Id; Minutes = 30 } | Out-Null
+    Get-Status 'POST' '/HallMonitor/TimeOutUser' $script:Admin @{ UserId = $probe.Id; Minutes = 30 } | Out-Null
     Start-Sleep 3
     $after = @(Get-StatusPushes $pushLog)
     $row = $after[-1].Users | Where-Object { $_.UserId -eq $probe.Id }
     Check 'A time-out is pushed immediately and reports BlockReason' (($after.Count -gt $count) -and ($row.BlockReason -eq 'TimedOut') -and (([datetimeoffset]$row.TimeOutUntil).UtcDateTime -gt [datetime]::UtcNow)) "BlockReason=$($row.BlockReason)"
-    Get-Status 'POST' '/WatchingEye/ClearTimeOut' $script:Admin @{ UserId = $probe.Id } | Out-Null
+    Get-Status 'POST' '/HallMonitor/ClearTimeOut' $script:Admin @{ UserId = $probe.Id } | Out-Null
     Start-Sleep 3
     $row = (@(Get-StatusPushes $pushLog))[-1].Users | Where-Object { $_.UserId -eq $probe.Id }
     Check 'Ending the time-out is pushed (BlockReason back to Allowed)' ($row.BlockReason -eq 'Allowed') "BlockReason=$($row.BlockReason)"
@@ -126,7 +126,7 @@ try {
     Check 'A wrong plugin key gets an error and no status' (($badPushes.Count -ge 1) -and ($badPushes[0].Error -match 'Unauthorized') -and (@($badPushes | Where-Object { @($_.Users).Count -gt 0 }).Count -eq 0))
     foreach ($pc in $pushClients) { if ($pc) { Stop-Process -Id $pc.Id -Force -ErrorAction SilentlyContinue } }
     Remove-Item -LiteralPath $pushLog, $pushLogUser, $pushLogBad -Force -ErrorAction SilentlyContinue
-    Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+    Get-Status 'POST' '/HallMonitor/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
 
     Write-Host "== Security hardening (review follow-up)"
     $shortCfg = Get-PluginConfig; $shortCfg.EnablePublicApi = $true; $shortCfg.ApiKey = 'short-key'
@@ -157,7 +157,7 @@ try {
     Write-Host "== What is playing, and Stop stream (so the app needs no Emby administrator key)"
     $nowLog = Join-Path ([IO.Path]::GetTempPath()) ("we-now-{0}.log" -f [guid]::NewGuid().ToString('N'))
     $stopLog = Join-Path ([IO.Path]::GetTempPath()) ("we-stop-{0}.log" -f [guid]::NewGuid().ToString('N'))
-    Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+    Get-Status 'POST' '/HallMonitor/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
     Invoke-RestMethod "$($script:Api)/Sessions/Capabilities/Full?DeviceId=$($probe.DeviceId)" -Method Post -Headers $viaProbe -ContentType 'application/json' -Body (@{ PlayableMediaTypes = @('Video', 'Audio'); SupportedCommands = @('DisplayMessage'); SupportsMediaControl = $true } | ConvertTo-Json) | Out-Null
     $stopListener = Start-Process powershell -PassThru -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $PSScriptRoot 'ws-listen.ps1')`" -Token $($probe.Token) -DeviceId $($probe.DeviceId) -Out `"$stopLog`""
     $nowClient = Start-PushClient -Token $script:Admin['X-Emby-Token'] -LogFile $nowLog -PluginKey 'regression-test-key-0123456789'
@@ -168,10 +168,10 @@ try {
     Start-Sleep 3
     $nowRow = (@(Get-StatusPushes $nowLog))[-1].Users | Where-Object { $_.UserId -eq $probe.Id }
     Check 'A push reports what the user is playing (item, session, position)' (($null -ne $nowRow.NowPlaying) -and ($nowRow.NowPlaying.ItemName.Length -gt 0) -and ($nowRow.NowPlaying.SessionId.Length -gt 0) -and ($nowRow.NowPlaying.PositionTicks -ge 100000000)) "item=[$($nowRow.NowPlaying.ItemName)] position=$($nowRow.NowPlaying.PositionTicks)"
-    Check 'StopStream refuses an unlisted user (400) and a normal user (403)' (((Get-Status 'POST' '/WatchingEye/StopStream' $script:Admin @{ UserId = 'someone-else' }) -eq 400) -and ((Get-Status 'POST' '/WatchingEye/StopStream' $viaProbe @{ UserId = $probe.Id }) -eq 403))
-    Check 'Public StopStream needs the plugin key' ((Get-Status 'POST' '/WatchingEye/Public/StopStream' $script:Admin @{ UserId = $probe.Id }) -eq 403)
+    Check 'StopStream refuses an unlisted user (400) and a normal user (403)' (((Get-Status 'POST' '/HallMonitor/StopStream' $script:Admin @{ UserId = 'someone-else' }) -eq 400) -and ((Get-Status 'POST' '/HallMonitor/StopStream' $viaProbe @{ UserId = $probe.Id }) -eq 403))
+    Check 'Public StopStream needs the plugin key' ((Get-Status 'POST' '/HallMonitor/Public/StopStream' $script:Admin @{ UserId = $probe.Id }) -eq 403)
     $stopMark = @(Get-Content -LiteralPath $stopLog -ErrorAction SilentlyContinue).Count
-    $stopCode = Get-Status 'POST' '/WatchingEye/Public/StopStream' ($script:Admin + $key) @{ UserId = $probe.Id }
+    $stopCode = Get-Status 'POST' '/HallMonitor/Public/StopStream' ($script:Admin + $key) @{ UserId = $probe.Id }
     Start-Sleep 3
     $stopLines = @(Get-Content -LiteralPath $stopLog -ErrorAction SilentlyContinue | Select-Object -Skip $stopMark)
     Check 'Public StopStream with the key sends a Stop command to the user''s player' (($stopCode -eq 204) -and (@($stopLines | Where-Object { $_ -match '"Command":"Stop"' }).Count -ge 1)) "HTTP $stopCode"
@@ -181,7 +181,7 @@ try {
     Check 'Stopping playback is pushed (nothing playing any more)' ($null -eq $endRow.NowPlaying)
     foreach ($p in @($nowClient, $stopListener)) { if ($p) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
     Remove-Item -LiteralPath $oneLog, $reLog, $nowLog, $stopLog -Force -ErrorAction SilentlyContinue
-    Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+    Get-Status 'POST' '/HallMonitor/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
 
     Write-Host "== Configuration clamping"
     $cfg = Get-PluginConfig
@@ -227,7 +227,7 @@ try {
         Save-PluginConfig $cfg
         Check 'User names with quotes and ampersands are kept exactly' ((Get-LimitedStatus $probe2).Username -eq "O'Brien & Co") "reported=[$((Get-LimitedStatus $probe2).Username)]"
 
-        Get-Status 'POST' '/WatchingEye/TimeOutUser' $script:Admin @{ UserId = $probe.Id; Minutes = 1 } | Out-Null
+        Get-Status 'POST' '/HallMonitor/TimeOutUser' $script:Admin @{ UserId = $probe.Id; Minutes = 1 } | Out-Null
         Check 'An active time-out is reported' (([datetimeoffset](Get-LimitedStatus $probe).TimeOutUntil).UtcDateTime -gt [datetime]::UtcNow)
         Start-Sleep 65
         $expired = (Get-LimitedStatus $probe).TimeOutUntil
@@ -238,7 +238,7 @@ try {
         Write-Host "== Enforcement (about 90 seconds)"
         $cfg = Get-PluginConfig; $cfg.LimitedUsers[0].ResetTimeOfDayHours = 3.0; $cfg.LimitedUsers[0].DailyLimitMinutes = 1
         $cfg.TimeOutMessageText = 'Test time-out. Playback is disabled until {end_time}.'; Save-PluginConfig $cfg
-        Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+        Get-Status 'POST' '/HallMonitor/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
         Invoke-RestMethod "$($script:Api)/Sessions/Capabilities/Full?DeviceId=$($probe.DeviceId)" -Method Post -Headers $viaProbe -ContentType 'application/json' -Body (@{ PlayableMediaTypes = @('Video', 'Audio'); SupportedCommands = @('DisplayMessage'); SupportsMediaControl = $true } | ConvertTo-Json) | Out-Null
         $listener = Start-Process powershell -PassThru -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $PSScriptRoot 'ws-listen.ps1')`" -Token $($probe.Token) -DeviceId $($probe.DeviceId) -Out `"$logFile`""
         Start-Sleep 4
@@ -250,24 +250,24 @@ try {
         Check 'Watch time is counted' ($watched -ge 60) "watched=$watched s (limit 60 s)"
         Check 'A Stop command was sent at the limit' (@($messages | Where-Object { $_ -match '"Command":"Stop"' }).Count -ge 1)
         Check 'The limit message was sent' (@($messages | Where-Object { $_ -match 'Time Limit Reached' }).Count -ge 1)
-        $events = @(Invoke-RestMethod "$($script:Api)/WatchingEye/GetLogEvents" -Headers $script:Admin)
+        $events = @(Invoke-RestMethod "$($script:Api)/HallMonitor/GetLogEvents" -Headers $script:Admin)
         Check 'A LimitReached event was logged' (@($events | Where-Object { $_.EventType -eq 'LimitReached' -and $_.Username -eq $probe.Name }).Count -ge 1)
         $mark = @($messages).Count
         Send-PlaybackReport $probe '/Sessions/Playing' 'regression-blocked' 0; Start-Sleep 4
         $after = @(Get-Content -LiteralPath $logFile | Select-Object -Skip $mark)
         Check 'Starting playback while over the limit is blocked' (@($after | Where-Object { $_ -match '"Command":"Stop"' }).Count -ge 1)
         Send-PlaybackReport $probe '/Sessions/Playing/Stopped' 'regression-blocked' 1
-        Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+        Get-Status 'POST' '/HallMonitor/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
         $mark = @(Get-Content -LiteralPath $logFile).Count
-        Get-Status 'POST' '/WatchingEye/TimeOutUser' $script:Admin @{ UserId = $probe.Id; Minutes = 30 } | Out-Null; Start-Sleep 3
+        Get-Status 'POST' '/HallMonitor/TimeOutUser' $script:Admin @{ UserId = $probe.Id; Minutes = 30 } | Out-Null; Start-Sleep 3
         $timeoutMessage = @(Get-Content -LiteralPath $logFile | Select-Object -Skip $mark | Where-Object { $_ -match 'Playback Disabled' })
         $expected = (Get-Date).AddMinutes(30).ToString('h:mm tt')
         Check 'Time-out message states the local end time' (($timeoutMessage.Count -ge 1) -and ($timeoutMessage[0] -match [regex]::Escape(' at ')) -and ($timeoutMessage[0] -match 'until')) "expected about $expected"
-        Get-Status 'POST' '/WatchingEye/ClearTimeOut' $script:Admin @{ UserId = $probe.Id } | Out-Null
+        Get-Status 'POST' '/HallMonitor/ClearTimeOut' $script:Admin @{ UserId = $probe.Id } | Out-Null
 
         Write-Host "== Name sanitising (client-supplied markup must not reach the log)"
-        Invoke-RestMethod "$($script:Api)/WatchingEye/ClearLogs" -Method Post -Headers $script:Admin -ContentType 'application/json' -Body '{}' | Out-Null
-        Get-Status 'POST' '/WatchingEye/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+        Invoke-RestMethod "$($script:Api)/HallMonitor/ClearLogs" -Method Post -Headers $script:Admin -ContentType 'application/json' -Body '{}' | Out-Null
+        Get-Status 'POST' '/HallMonitor/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
         $marker = '<b>marker</b>'
         $query = "X-Emby-Client=$marker&X-Emby-Device-Id=we-regression-2&X-Emby-Device-Name=test&X-Emby-Client-Version=1&X-Emby-Token=$($probe.Token)"
         for ($i = 0; $i -le 16; $i++) {
@@ -276,23 +276,23 @@ try {
             Invoke-RestMethod "$($script:Api)$path`?$query" -Method Post -ContentType 'application/json' -Body $body | Out-Null
             if ($i -gt 0) { Start-Sleep 5 }
         }
-        $names = @(Invoke-RestMethod "$($script:Api)/WatchingEye/GetLogEvents" -Headers $script:Admin) | ForEach-Object { $_.ClientName }
+        $names = @(Invoke-RestMethod "$($script:Api)/HallMonitor/GetLogEvents" -Headers $script:Admin) | ForEach-Object { $_.ClientName }
         Check 'Logged client names contain no angle brackets' ((@($names).Count -ge 1) -and (-not (($names -join ' ') -match '[<>]'))) "names=[$($names -join ' | ')]"
     }
 
     if (-not $SkipLockout) {
         Write-Host "== Public API lockout"
-        for ($i = 1; $i -le 6; $i++) { Get-Status 'GET' '/WatchingEye/Public/Status' ($script:Admin + @{ 'X-WatchingEye-Api-Key' = "wrong$i" }) | Out-Null }
-        Check 'After repeated failures even the correct key is refused (lockout)' ((Get-Status 'GET' '/WatchingEye/Public/Status' ($script:Admin + $key)) -eq 403) '(lockout lasts 5 minutes or until Emby restarts)'
+        for ($i = 1; $i -le 6; $i++) { Get-Status 'GET' '/HallMonitor/Public/Status' ($script:Admin + @{ 'X-HallMonitor-Api-Key' = "wrong$i" }) | Out-Null }
+        Check 'After repeated failures even the correct key is refused (lockout)' ((Get-Status 'GET' '/HallMonitor/Public/Status' ($script:Admin + $key)) -eq 403) '(lockout lasts 5 minutes or until Emby restarts)'
     }
 }
 finally {
     Write-Host "== Cleanup"
     if ($listener) { Stop-Process -Id $listener.Id -Force -ErrorAction SilentlyContinue }
     if (Test-Path -LiteralPath $logFile) { Remove-Item -LiteralPath $logFile -Force }
-    try { if ($probe) { Invoke-RestMethod "$($script:Api)/WatchingEye/DeleteUserData" -Method Post -Headers $script:Admin -ContentType 'application/json' -Body (@{ UserId = $probe.Id } | ConvertTo-Json) | Out-Null } } catch { }
+    try { if ($probe) { Invoke-RestMethod "$($script:Api)/HallMonitor/DeleteUserData" -Method Post -Headers $script:Admin -ContentType 'application/json' -Body (@{ UserId = $probe.Id } | ConvertTo-Json) | Out-Null } } catch { }
     try { Reset-PluginState } catch { Write-Host "Could not reset plugin state: $($_.Exception.Message)" }
-    foreach ($extra in @($probe2)) { if ($extra) { try { Invoke-RestMethod "$($script:Api)/WatchingEye/DeleteUserData" -Method Post -Headers $script:Admin -ContentType "application/json" -Body (@{ UserId = $extra.Id } | ConvertTo-Json) | Out-Null } catch { } } }
+    foreach ($extra in @($probe2)) { if ($extra) { try { Invoke-RestMethod "$($script:Api)/HallMonitor/DeleteUserData" -Method Post -Headers $script:Admin -ContentType "application/json" -Body (@{ UserId = $extra.Id } | ConvertTo-Json) | Out-Null } catch { } } }
     Remove-ProbeUser $probe2
     Remove-ProbeUser $probe
 }

@@ -1,7 +1,7 @@
 name: Release plugin
 
-# Builds WatchingEye.dll and publishes it as a GitHub Release when you push a version tag such as v1.7.0.0.
-# The tag must equal "v" + the AssemblyVersion in src/WatchingEye/Properties/AssemblyInfo.cs.
+# Builds HallMonitor.dll and publishes it as a GitHub Release when you push a version tag such as v1.7.0.0.
+# The tag must equal "v" + the AssemblyVersion in src/HallMonitor/Properties/AssemblyInfo.cs.
 # You can also start it by hand (Actions tab -> Release plugin -> Run workflow) as a dry run: it builds the DLL and keeps
 # it as a downloadable workflow artifact, but publishes nothing.
 on:
@@ -27,7 +27,7 @@ jobs:
       - name: Check that the tag matches the plugin version
         if: github.ref_type == 'tag'
         run: |
-          version="$(sed -n 's/.*AssemblyVersion("\([0-9.]*\)").*/\1/p' src/WatchingEye/Properties/AssemblyInfo.cs | head -n 1)"
+          version="$(sed -n 's/.*AssemblyVersion("\([0-9.]*\)").*/\1/p' src/HallMonitor/Properties/AssemblyInfo.cs | head -n 1)"
           if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
             echo "::error::Tag ${GITHUB_REF_NAME} does not match AssemblyVersion ${version}. Bump the version, commit, then tag again."
             exit 1
@@ -36,23 +36,23 @@ jobs:
       - name: Build
         # --locked-mode: build only with the exact package versions and hashes recorded in packages.lock.json
         run: |
-          dotnet restore src/WatchingEye --locked-mode
-          dotnet build src/WatchingEye -c Release --no-restore
+          dotnet restore src/HallMonitor --locked-mode
+          dotnet build src/HallMonitor -c Release --no-restore
 
       - name: Name the DLL and write its checksum
         run: |
           mkdir -p dist
-          cp src/WatchingEye/bin/Release/net6.0/WatchingEye.dll dist/WatchingEye.dll
-          (cd dist && sha256sum WatchingEye.dll > WatchingEye.dll.sha256)
-          cat dist/WatchingEye.dll.sha256
+          cp src/HallMonitor/bin/Release/net6.0/HallMonitor.dll dist/HallMonitor.dll
+          (cd dist && sha256sum HallMonitor.dll > HallMonitor.dll.sha256)
+          cat dist/HallMonitor.dll.sha256
 
       - name: Attest where the DLL came from
         # Signed proof that this exact file was built from this repository by this workflow. Verify a download with:
-        #   gh attestation verify WatchingEye.dll --repo feerlessleadr/hall-monitor-emby
+        #   gh attestation verify HallMonitor.dll --repo feerlessleadr/hall-monitor-emby
         if: github.ref_type == 'tag'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: dist/WatchingEye.dll
+          subject-path: dist/HallMonitor.dll
 
       - name: Publish the GitHub Release
         if: github.ref_type == 'tag'

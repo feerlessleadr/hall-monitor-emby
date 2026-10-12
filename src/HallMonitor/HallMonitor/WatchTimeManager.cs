@@ -28,6 +28,11 @@ public static class WatchTimeManager
 
 	private static string? _watchTimeDataPath;
 
+	/// <summary>How long each user has really watched, kept apart from the limiter's counters: no reset, extension or time-out touches it.</summary>
+	private static WatchLedger _ledger = new WatchLedger();
+
+	private static string? _ledgerPath;
+
 	private static bool _isRunning = false;
 
 	private static readonly int TimerIntervalSeconds = 15;
@@ -67,6 +72,8 @@ public static class WatchTimeManager
 			_jsonSerializer = jsonSerializer;
 			_watchTimeDataPath = Path.Combine(appPaths.PluginConfigurationsPath, "HallMonitor.WatchTime.json");
 			LoadWatchTimeData();
+			_ledgerPath = Path.Combine(appPaths.PluginConfigurationsPath, "HallMonitor.WatchLedger.json");
+			LoadLedger();
 			_lastTimerFire = DateTime.UtcNow;
 			TimeSpan timeSpan = TimeSpan.FromSeconds(TimerIntervalSeconds);
 			_updateTimer = new Timer(OnTimerElapsed, null, timeSpan, timeSpan);
@@ -189,6 +196,7 @@ public static class WatchTimeManager
 				orAdd.WatchedTimeTicksWeekly += ticks;
 				orAdd.WatchedTimeTicksMonthly += ticks;
 				orAdd.WatchedTimeTicksYearly += ticks;
+					_ledger.Add(userId, WatchLedger.LogicalDay(DateTime.Now, userConfig2.ResetTimeOfDayHours), timeSpan.TotalSeconds);
 				anyChanged = true;
 				if (IsTimeLimitExceeded(userConfig2, orAdd))
 				{
@@ -769,8 +777,14 @@ public static class WatchTimeManager
 				UserId = id
 			});
 			RemainingInfo remaining = ComputeRemaining(limitedUser, orAdd);
+			LedgerTotals watched = _ledger.Totals(limitedUser.UserId, WatchLedger.LogicalDay(DateTime.Now, limitedUser.ResetTimeOfDayHours));
 			list.Add(new LimitedUserStatus
 			{
+				WatchedTodaySeconds = watched.Today,
+				WatchedWeekSeconds = watched.Week,
+				WatchedMonthSeconds = watched.Month,
+				WatchedYearSeconds = watched.Year,
+				WatchedTrackingSince = watched.Since ?? string.Empty,
 				UserId = limitedUser.UserId,
 				Username = limitedUser.Username,
 				DailyLimitMinutes = limitedUser.DailyLimitMinutes,
@@ -1082,7 +1096,25 @@ public static class WatchTimeManager
 		}
 	}
 
+	/// <summary>
+	/// Gives the user a fresh day: only the limiter's daily counter (and the extra time added to today) goes back to zero. The weekly, monthly and
+	/// yearly limiter counters and the permanent watched-time ledger are left alone.
+	/// </summary>
 	public static void ResetWatchTimeForUser(string userId)
+	{
+		if (!string.IsNullOrWhiteSpace(userId) && _userWatchData.TryGetValue(userId, out UserWatchData value))
+		{
+			string key = value.UserId;
+			value.WatchedTimeTicksDaily = 0L;
+			value.TimeCreditTicksDaily = 0L;
+			_limitServerNotified.TryRemove(key, out var _);
+			_dailyThresholdsNotified.TryRemove(key, out ConcurrentDictionary<int, bool> _);
+			SaveWatchTimeDataImmediate();
+		}
+	}
+
+	/// <summary>Zeroes every limiter counter of the user (day, week, month and year). The watched-time ledger is still kept.</summary>
+	private static void ResetAllCountersForUser(string userId)
 	{
 		if (!string.IsNullOrWhiteSpace(userId) && _userWatchData.TryGetValue(userId, out UserWatchData value))
 		{
@@ -1111,6 +1143,7 @@ public static class WatchTimeManager
 			return;
 		}
 		_userWatchData.TryRemove(userId, out UserWatchData _);
+		_ledger.Remove(userId);
 		_limitServerNotified.TryRemove(userId, out var _);
 		_dailyThresholdsNotified.TryRemove(userId, out ConcurrentDictionary<int, bool> value3);
 		_weeklyThresholdsNotified.TryRemove(userId, out value3);
@@ -1124,7 +1157,7 @@ public static class WatchTimeManager
 	{
 		foreach (string key in _userWatchData.Keys)
 		{
-			ResetWatchTimeForUser(key);
+			ResetAllCountersForUser(key);
 		}
 	}
 
@@ -1230,6 +1263,67 @@ public static class WatchTimeManager
 		}
 	}
 
+	/// <summary>Reads the watched-time ledger. A first run (no file) starts it from today's limiter counters, since nothing older was recorded.</summary>
+	private static void LoadLedger()
+	{
+		if (string.IsNullOrEmpty(_ledgerPath))
+		{
+			return;
+		}
+		try
+		{
+			if (File.Exists(_ledgerPath))
+			{
+				WatchLedger? loaded = WatchLedger.FromJson(File.ReadAllText(_ledgerPath));
+				if (loaded != null)
+				{
+					_ledger = loaded;
+					return;
+				}
+				string aside = _ledgerPath + ".corrupt-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+				File.Move(_ledgerPath, aside);
+				_logger?.Error("[WatchTimeManager] The watched-time ledger could not be read; it was moved aside to " + Path.GetFileName(aside) + " and counting starts again.", Array.Empty<object>());
+			}
+			PluginConfiguration? config = ((BasePlugin<PluginConfiguration>)(object)Plugin.Instance)?.Configuration;
+			foreach (UserWatchData data in _userWatchData.Values)
+			{
+				double hour = config?.LimitedUsers.FirstOrDefault((LimitedUser u) => u.UserId.Equals(data.UserId, StringComparison.OrdinalIgnoreCase))?.ResetTimeOfDayHours ?? 0.0;
+				_ledger.SeedDay(data.UserId, WatchLedger.LogicalDay(DateTime.Now, hour), TimeSpan.FromTicks(data.WatchedTimeTicksDaily).TotalSeconds);
+			}
+			_isDirty = true;
+		}
+		catch (Exception ex)
+		{
+			_logger?.ErrorException("[WatchTimeManager] Error loading the watched-time ledger.", ex, Array.Empty<object>());
+		}
+	}
+
+	private static void SaveLedger()
+	{
+		if (string.IsNullOrEmpty(_ledgerPath))
+		{
+			return;
+		}
+		try
+		{
+			_ledger.Prune(DateTime.Now);
+			string temp = _ledgerPath + ".tmp";
+			File.WriteAllText(temp, _ledger.ToJson());
+			if (File.Exists(_ledgerPath))
+			{
+				File.Replace(temp, _ledgerPath, null);
+			}
+			else
+			{
+				File.Move(temp, _ledgerPath);
+			}
+		}
+		catch (Exception ex)
+		{
+			_logger?.ErrorException("[WatchTimeManager] Error saving the watched-time ledger.", ex, Array.Empty<object>());
+		}
+	}
+
 	private static void SaveWatchTimeData()
 	{
 		if (_jsonSerializer == null || string.IsNullOrEmpty(_watchTimeDataPath))
@@ -1238,6 +1332,7 @@ public static class WatchTimeManager
 		}
 		lock (_saveLock)
 		{
+			SaveLedger();
 			try
 			{
 				WatchTimePersistenceData watchTimePersistenceData = new WatchTimePersistenceData

@@ -33,6 +33,9 @@ jobs:
             exit 1
           fi
 
+      - name: Unit tests
+        run: dotnet test tests/HallMonitor.Tests
+
       - name: Build
         # --locked-mode: build only with the exact package versions and hashes recorded in packages.lock.json
         run: |

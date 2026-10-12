@@ -421,12 +421,20 @@
                 }
             }
 
+            let watchedHtml = '';
+            if (status && status.ApiLevel >= 3) {
+                const hm = (s) => { const m = Math.floor((s || 0) / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+                const since = status.WatchedTrackingSince ? ` (counted since ${esc(status.WatchedTrackingSince)})` : '';
+                watchedHtml = `<div class="listItemText secondary">Watched: today ${hm(status.WatchedTodaySeconds)} &middot; this week ${hm(status.WatchedWeekSeconds)} &middot; this month ${hm(status.WatchedMonthSeconds)} &middot; this year ${hm(status.WatchedYearSeconds)}${since}. Resets never change these.</div>`;
+            }
+
             return `
             <div class="listItem ${disabledClass}" style="display:flex; align-items: flex-start; padding: 0.5em 0;">
                 <div class="listItemBody" style="flex-grow: 1;">
                     <h3 class="listItemTitle">${esc(user.Username)}${statusText}</h3>
                     ${timeOutHtml}
                     ${periodRowsHtml || `<div class="listItemText secondary">${remainingTimeText}</div>`}
+                    ${watchedHtml}
                     <div class="listItemText">${timeWindowText}</div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.5em; margin-left: 1em; flex-wrap: wrap; justify-content: flex-end;">
@@ -439,7 +447,7 @@
                         <span>Clear TO</span>
                     </button>
                     ` : ''}
-                    <button is="emby-button" type="button" class="fab mini raised paper-icon-button-light btnResetUser" data-userid="${esc(user.UserId)}" title="Reset All Time">
+                    <button is="emby-button" type="button" class="fab mini raised paper-icon-button-light btnResetUser" data-userid="${esc(user.UserId)}" title="Fresh day: reset only today's limiter counter">
                         <i class="md-icon">refresh</i>
                     </button>
                     <button is="emby-button" type="button" class="fab mini raised paper-icon-button-light btnEditUser" data-userid="${esc(user.UserId)}" title="Edit Limit">

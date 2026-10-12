@@ -204,7 +204,7 @@ try {
         $cfg.LimitedUsers[0].EnablePerDayLimits = $false
         Save-PluginConfig $cfg
         $row = Get-LimitedStatus $probe
-        $expectedFields = @('UserId', 'Username', 'DailyLimitMinutes', 'WeeklyLimitHours', 'MonthlyLimitHours', 'YearlyLimitHours', 'SecondsWatchedDaily', 'SecondsWatchedWeekly', 'SecondsWatchedMonthly', 'SecondsWatchedYearly', 'CreditSecondsDaily', 'CreditSecondsWeekly', 'CreditSecondsMonthly', 'CreditSecondsYearly', 'TimeOutUntil', 'EffectiveDailyLimitMinutes', 'IsEnabled', 'BlockReason', 'SecondsRemaining', 'LimitingPeriod', 'LimitingAllowedSeconds', 'ApiLevel')
+        $expectedFields = @('UserId', 'Username', 'DailyLimitMinutes', 'WeeklyLimitHours', 'MonthlyLimitHours', 'YearlyLimitHours', 'SecondsWatchedDaily', 'SecondsWatchedWeekly', 'SecondsWatchedMonthly', 'SecondsWatchedYearly', 'CreditSecondsDaily', 'CreditSecondsWeekly', 'CreditSecondsMonthly', 'CreditSecondsYearly', 'TimeOutUntil', 'EffectiveDailyLimitMinutes', 'IsEnabled', 'BlockReason', 'SecondsRemaining', 'LimitingPeriod', 'LimitingAllowedSeconds', 'ApiLevel', 'WatchedTodaySeconds', 'WatchedWeekSeconds', 'WatchedMonthSeconds', 'WatchedYearSeconds', 'WatchedTrackingSince')
         $missing = @($expectedFields | Where-Object { $row.PSObject.Properties.Name -notcontains $_ })
         Check 'Status contains every field the Android app reads plus the new ones' ($missing.Count -eq 0) "missing=[$($missing -join ',')]"
         Check 'Effective daily limit equals the daily limit' ($row.EffectiveDailyLimitMinutes -eq 60) "value=$($row.EffectiveDailyLimitMinutes)"
@@ -257,7 +257,15 @@ try {
         $after = @(Get-Content -LiteralPath $logFile | Select-Object -Skip $mark)
         Check 'Starting playback while over the limit is blocked' (@($after | Where-Object { $_ -match '"Command":"Stop"' }).Count -ge 1)
         Send-PlaybackReport $probe '/Sessions/Playing/Stopped' 'regression-blocked' 1
+        $beforeReset = Get-LimitedStatus $probe
+        Check 'The watched-time ledger counted the same playback' (($beforeReset.WatchedTodaySeconds -ge 60) -and ($beforeReset.WatchedWeekSeconds -ge $beforeReset.WatchedTodaySeconds) -and ($beforeReset.WatchedMonthSeconds -ge $beforeReset.WatchedWeekSeconds) -and ($beforeReset.WatchedYearSeconds -ge $beforeReset.WatchedMonthSeconds) -and ($beforeReset.WatchedTrackingSince -match '^\d{4}-\d{2}-\d{2}$')) "today=$($beforeReset.WatchedTodaySeconds) week=$($beforeReset.WatchedWeekSeconds) since=$($beforeReset.WatchedTrackingSince)"
         Get-Status 'POST' '/HallMonitor/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
+        $afterReset = Get-LimitedStatus $probe
+        Check 'Reset gives a fresh day: the daily counter is zero, the weekly limiter counter is kept' (($afterReset.SecondsWatchedDaily -eq 0) -and ($afterReset.SecondsWatchedWeekly -ge 60)) "daily=$($afterReset.SecondsWatchedDaily) weekly=$($afterReset.SecondsWatchedWeekly)"
+        Check 'Reset never changes the watched-time totals' (($afterReset.WatchedTodaySeconds -ge $beforeReset.WatchedTodaySeconds) -and ($afterReset.WatchedWeekSeconds -ge $beforeReset.WatchedWeekSeconds) -and ($afterReset.WatchedYearSeconds -ge $beforeReset.WatchedYearSeconds)) "today $($beforeReset.WatchedTodaySeconds) -> $($afterReset.WatchedTodaySeconds)"
+        Get-Status 'POST' '/HallMonitor/ResetAllUsersTime' $script:Admin @{} | Out-Null
+        $afterAll = Get-LimitedStatus $probe
+        Check 'Reset All Users zeroes every limiter counter but still keeps the watched-time totals' (($afterAll.SecondsWatchedWeekly -eq 0) -and ($afterAll.SecondsWatchedYearly -eq 0) -and ($afterAll.WatchedYearSeconds -ge $beforeReset.WatchedYearSeconds)) "weekly=$($afterAll.SecondsWatchedWeekly) ledger-year=$($afterAll.WatchedYearSeconds)"
         $mark = @(Get-Content -LiteralPath $logFile).Count
         Get-Status 'POST' '/HallMonitor/TimeOutUser' $script:Admin @{ UserId = $probe.Id; Minutes = 30 } | Out-Null; Start-Sleep 3
         $timeoutMessage = @(Get-Content -LiteralPath $logFile | Select-Object -Skip $mark | Where-Object { $_ -match 'Playback Disabled' })

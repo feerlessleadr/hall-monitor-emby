@@ -55,6 +55,18 @@ public class LimitedUserStatus
 	/// <summary>What the user is playing right now (null when nothing is playing).</summary>
 	public NowPlayingInfo? NowPlaying { get; set; }
 
-	/// <summary>2 from plugin 1.9: the status itself says what is playing, so a missing NowPlaying means nothing is playing.</summary>
-	public int ApiLevel { get; set; } = 2;
+	/// <summary>Seconds this user has really watched today, this week (Monday to Sunday), this month and this year. Kept apart from the limiter: a reset, an extension or a time-out never changes them. A day starts at the user's reset time of day.</summary>
+	public double WatchedTodaySeconds { get; set; }
+
+	public double WatchedWeekSeconds { get; set; }
+
+	public double WatchedMonthSeconds { get; set; }
+
+	public double WatchedYearSeconds { get; set; }
+
+	/// <summary>The first day (yyyy-MM-dd) the watched-time ledger has for this user: totals before it were not recorded. Empty when there is nothing yet.</summary>
+	public string WatchedTrackingSince { get; set; } = string.Empty;
+
+	/// <summary>2 from plugin 1.9: the status says what is playing, so a missing NowPlaying means nothing is playing. 3 from plugin 2.1: also the watched-time totals (Watched...Seconds), and Reset only gives a fresh day.</summary>
+	public int ApiLevel { get; set; } = 3;
 }

@@ -287,7 +287,7 @@
                         <hr style="margin: 2em 0;">
 
                         <h3>POST /HallMonitor/Public/ResetUserTime</h3>
-                        <p>Resets all watch time counters for a single specified user to zero.</p>
+                        <p>Gives a single user a fresh day: only the limiter's daily counter (and the extra time added today) goes back to zero. The weekly, monthly and yearly limiter counters and the permanent watched-time totals are not changed.</p>
                         <p><strong>Request Body:</strong></p>
                         <pre>{
     "UserId": "YOUR_USER_ID_HERE"

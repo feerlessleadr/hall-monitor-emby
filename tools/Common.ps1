@@ -1,4 +1,4 @@
-# Shared helpers for the Watching Eye test scripts. Dot-source this file; do not run it directly.
+# Shared helpers for the Hall Monitor test scripts. Dot-source this file; do not run it directly.
 #
 # Nothing in this repository contains credentials: the Emby admin API key is read from a file you
 # point to (-KeyFile). Temporary test users get a random password that is never written to disk or printed.
@@ -91,7 +91,7 @@ function Start-PushClient {
     return Start-Process powershell -PassThru -WindowStyle Hidden -ArgumentList $arguments
 }
 
-# Returns the parsed Watching Eye status pushes (oldest first) from a push client's log file.
+# Returns the parsed Hall Monitor status pushes (oldest first) from a push client's log file.
 function Get-StatusPushes {
     param([string]$LogFile)
     $lines = @(Get-Content -LiteralPath $LogFile -ErrorAction SilentlyContinue | Where-Object { $_ -match '"MessageType":"WatchingEyeStatus"' })

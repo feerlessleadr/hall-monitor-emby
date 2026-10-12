@@ -1,16 +1,25 @@
-# Watching Eye (recovered fork)
+<p align="center"><img src="assets/logo/hall-monitor-512.png" alt="Hall Monitor: two progress rings around a play button, one for the day and one for the week" width="128"></p>
+
+# Hall Monitor (for Emby)
 
 Emby Server plugin that limits how long selected users can watch: per-user daily / weekly / monthly / yearly caps,
 per-day limits, allowed time windows, extra time, and time-outs. Only users listed under *Limited Users* are affected.
 
-> **Recovered via decompilation.** The original author deleted the GitHub repository. This source was reconstructed from
-> `WatchingEye.dll` **v1.6.8.0** (the original binary is not included in this repository; SHA-256
-> `099F8C1D474ECACA05384701DC4D3FFA7DB76379C7B83EEA748C8E2547CCDEBD`) using `ilspycmd` 11.1, then maintained by hand.
-> The original author is unknown (AssemblyCompany is empty; copyright line "(c) 2025"). Comments and any original
-> tests/docs were lost. Features unrelated to watch time (transcode warnings, library restrictions, global rules,
-> exclusions, ...) were removed in this fork; see `PROGRESS.md` for every decision.
+> **New name, same plugin.** Hall Monitor was called *Watching Eye (recovered fork)* until version 1.9. It is renamed
+> because it is a rewrite derived from the original plugin, not a fork that continues it, and should not be mistaken for it.
+> Only the visible name changed (Emby's plugin list and page, notifications, this repository). The internal names that
+> other software and your saved settings depend on are unchanged: the plugin GUID, `WatchingEye.dll`, the web addresses
+> (`/emby/WatchingEye/...`), the `X-WatchingEye-Api-Key` header, the live-update message names and the settings files
+> (`WatchingEye*` in `programdata/plugins/configurations`). Updating from 1.9 keeps your settings.
 
-- Plugin name: `Watching Eye` - GUID: `e8c3b1b3-4f56-4f38-a28a-2e6c5a043007` (must not change; Emby identifies the plugin by it)
+> **Derived from a recovered plugin.** The original author deleted the GitHub repository. This source was reconstructed from
+> `WatchingEye.dll` **v1.6.8.0** (the original binary is not included in this repository; SHA-256
+> `099F8C1D474ECACA05384701DC4D3FFA7DB76379C7B83EEA748C8E2547CCDEBD`) using `ilspycmd` 11.1, then rewritten and maintained
+> by hand. The original author is unknown (AssemblyCompany is empty; copyright line "(c) 2025"). Comments and any original
+> tests/docs were lost. Features unrelated to watch time (transcode warnings, library restrictions, global rules,
+> exclusions, ...) were removed; see `PROGRESS.md` for every decision.
+
+- Plugin name: `Hall Monitor` - GUID: `e8c3b1b3-4f56-4f38-a28a-2e6c5a043007` (must not change; Emby identifies the plugin by it)
 - Target: `net6.0`, references `MediaBrowser.Server.Core` 4.9.1.90 (NuGet). Tested on Emby Server 4.10.1.0.
 
 ## Build and install
@@ -23,12 +32,13 @@ Back up the existing plugin settings (`programdata/plugins/configurations/Watchi
 Releases are built by GitHub Actions and come with signed build provenance. To check that a downloaded `WatchingEye.dll`
 really was built from this repository (needs GitHub's `gh` tool):
 
-    gh attestation verify WatchingEye.dll --repo feerlessleadr/watching-eye-emby
+    gh attestation verify WatchingEye.dll --repo feerlessleadr/hall-monitor-emby
 
 The `.sha256` file next to the DLL only detects a damaged download; the attestation is what proves where it came from.
 Build with the exact packages recorded in `src/WatchingEye/packages.lock.json`: `dotnet restore src/WatchingEye --locked-mode`.
 
 ## Using the Android app safely
+The companion app is [Embidextrous](https://github.com/feerlessleadr/embidextrous) (its Hall Monitor tab). The notes below apply to it and to the older Watching Eye Android app.
 - The app needs the plugin key (Public API tab) and an Emby **token**. Prefer the token of an ordinary, non-administrator
   Emby user (the app can sign in for you; only the token is kept) over an administrator API key: with plugin 1.9 or newer the
   app needs nothing else, so a lost phone does not hand over your server.

@@ -31,12 +31,12 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 
 	public static void LogWarning(string message)
 	{
-		Instance?._logger?.Warn("[Watching Eye] " + message, Array.Empty<object>());
+		Instance?._logger?.Warn("[Hall Monitor] " + message, Array.Empty<object>());
 	}
 
-	public override string Name => "Watching Eye";
+	public override string Name => "Hall Monitor";
 
-	public override string Description => "A plugin to monitor and limit user watch time.";
+	public override string Description => "Hall Monitor limits how long selected users can watch: daily, weekly, monthly and yearly caps, time windows, extra time and time-outs.";
 
 	public override Guid Id => Guid.Parse("e8c3b1b3-4f56-4f38-a28a-2e6c5a043007");
 

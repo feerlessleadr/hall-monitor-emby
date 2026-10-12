@@ -1,4 +1,4 @@
-﻿<div is="emby-scroller" class="view flex flex-direction-column scrollFrameY flex-grow" data-horizontal="false" data-forcescrollbar="true" data-centerfocus="true" data-bindheader="true" data-controller="__plugin/WatchingEyeConfigurationjs" data-title="Watching Eye">
+﻿<div is="emby-scroller" class="view flex flex-direction-column scrollFrameY flex-grow" data-horizontal="false" data-forcescrollbar="true" data-centerfocus="true" data-bindheader="true" data-controller="__plugin/WatchingEyeConfigurationjs" data-title="Hall Monitor">
     <style>
         .disabled-item .listItemBody, .disabled-item .listItemBody .secondary {
             color: #999;
@@ -111,7 +111,7 @@
     </style>
     <div class="scrollSlider flex-direction-column padded-left padded-left-page padded-right padded-top-page padded-bottom-page">
         <div class="readOnlyContent auto-center" style="max-width: 1200px;">
-            <h1 class="pageTitle">Watching Eye</h1>
+            <h1 class="pageTitle">Hall Monitor</h1>
 
             <div data-role="controlgroup" data-type="horizontal" class="localnav">
                 <a is="emby-linkbutton" class="nav-button ui-btn-active" href="#" data-role="button" data-target="limiterPage">Watch Time Limiter</a>
@@ -204,7 +204,7 @@
                         <p>All API requests require **two** forms of authentication:</p>
                         <ul>
                             <li><strong>Server Authentication:</strong> You must include a main API key from your Emby server's dashboard (under Dashboard -> API Keys). This authenticates you with the server itself. The recommended method is to send it as a URL parameter: <code>?api_key=YOUR_SERVER_KEY</code>.</li>
-                            <li><strong>Plugin Authorization:</strong> You must include the API key generated within this plugin. This authorizes your request specifically for the Watching Eye plugin. This key must be sent as an HTTP header: <code>X-WatchingEye-Api-Key</code>.</li>
+                            <li><strong>Plugin Authorization:</strong> You must include the API key generated within this plugin. This authorizes your request specifically for the Hall Monitor plugin. This key must be sent as an HTTP header: <code>X-WatchingEye-Api-Key</code>.</li>
                         </ul>
 
                         <h3>API Endpoints</h3>

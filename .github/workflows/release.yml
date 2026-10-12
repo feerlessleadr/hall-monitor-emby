@@ -48,7 +48,7 @@ jobs:
 
       - name: Attest where the DLL came from
         # Signed proof that this exact file was built from this repository by this workflow. Verify a download with:
-        #   gh attestation verify WatchingEye.dll --repo feerlessleadr/watching-eye-emby
+        #   gh attestation verify WatchingEye.dll --repo feerlessleadr/hall-monitor-emby
         if: github.ref_type == 'tag'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
@@ -63,7 +63,7 @@ jobs:
           if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
             echo "A release for ${GITHUB_REF_NAME} already exists; not creating another one."
           else
-            gh release create "${GITHUB_REF_NAME}" dist/* --title "Watching Eye plugin ${GITHUB_REF_NAME}" --generate-notes
+            gh release create "${GITHUB_REF_NAME}" dist/* --title "Hall Monitor plugin ${GITHUB_REF_NAME}" --generate-notes
           fi
 
       - name: Keep the DLL as a workflow artifact (manual dry runs)

@@ -900,7 +900,7 @@
                 loading.hide();
             }).catch(err => {
                 loading.hide();
-                console.error('Error loading Watching Eye configuration page:', err);
+                console.error('Error loading Hall Monitor configuration page:', err);
                 toast({
                     type: 'error',
                     text: 'There was an error loading page data. Please try refreshing the page.'

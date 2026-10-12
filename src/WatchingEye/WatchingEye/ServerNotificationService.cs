@@ -40,7 +40,7 @@ public static class ServerNotificationService
 		{
 			_notificationManager.SendNotification(new NotificationRequest
 			{
-				Title = "Watching Eye: Time Limit Reached",
+				Title = "Hall Monitor: Time Limit Reached",
 				Description = "User '" + LogSanitizer.CleanText(username) + "' has reached their watch time limit. Playback has been stopped."
 			});
 			ILogger? logger = _logger;
@@ -57,7 +57,7 @@ public static class ServerNotificationService
 		{
 			_notificationManager.SendNotification(new NotificationRequest
 			{
-				Title = $"Watching Eye: {threshold}% Time Limit Warning",
+				Title = $"Hall Monitor: {threshold}% Time Limit Warning",
 				Description = $"User '{LogSanitizer.CleanText(username)}' has used {threshold}% of their {period} watch time limit."
 			});
 			ILogger? logger = _logger;

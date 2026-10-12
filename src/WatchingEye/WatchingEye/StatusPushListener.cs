@@ -152,7 +152,7 @@ public class StatusPushListener : BasePeriodicWebSocketListener<StatusPush, Stat
 				catch (SecurityException)
 				{
 					state.Authorized = false;
-					return Task.FromResult(Refusal("Unauthorized: administrator login, or a valid Watching Eye API key with the Public API enabled, is required."));
+					return Task.FromResult(Refusal("Unauthorized: administrator login, or a valid Hall Monitor API key with the Public API enabled, is required."));
 				}
 			}
 		}

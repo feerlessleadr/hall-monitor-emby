@@ -1,4 +1,4 @@
-# Testing Watching Eye
+# Testing Hall Monitor
 
 All tests run against a **test** Emby server. Nothing here is meant for a production server: the scripts create a
 throw-away user, change the plugin configuration, and restore the plugin to a clean disabled state when they finish.
@@ -39,7 +39,7 @@ If the lockout check ran, the Public API stays locked for the test client for 5 
 - `tools/ws-listen.ps1` - acts as an Emby client device over the websocket and logs every message the plugin sends (Stop, DisplayMessage). Pass `-Token`, `-DeviceId`, `-Out`.
 
 ## Manual checks (browser)
-Open the plugin page (Dashboard -> Plugins -> Watching Eye) in a **fresh page load** (Emby Web caches plugin pages):
+Open the plugin page (Dashboard -> Plugins -> Hall Monitor) in a **fresh page load** (Emby Web caches plugin pages):
 tabs are Watch Time Limiter / Logging / External API; Add User, edit a user, an enabled limit of 0 shows an error;
 Generate New Key makes a 64-character hex key and Clear Key empties it; Save shows "Settings saved."
 
@@ -49,3 +49,6 @@ Generate New Key makes a 64-character hex key and Clear Key empties it; Save sho
 - A real player is not used: the scripts report playback through Emby's session API, so the Stop command is observed on the
   websocket, not in a player. Emby Web in an embedded browser pane may ignore Stop.
 - Emby's own server log keeps request URLs (including session tokens) - use throw-away users only.
+
+## The test server is shared
+Other sessions on this machine (for example the GitHub plugin work) use the same Emby test server. Installing a plugin, restarting or stopping the server while the suite runs makes it fail in confusing ways (503 "Emby Server is loading", a stray extra push, missing users). Run it when nothing else is using the server, and delete the suite's leftover `we-*` / `O'Brien & Co` users and run `Reset-PluginState` after an aborted run.

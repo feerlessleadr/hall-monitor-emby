@@ -1,6 +1,6 @@
-# PROGRESS - Watching Eye (recovered fork)
+# PROGRESS - Hall Monitor (formerly Watching Eye, recovered fork)
 
-Living log for this fork. Sections: current state, decision log, issues and workarounds, test history, backlog.
+Living log for this plugin. Sections: current state, decision log, issues and workarounds, test history, backlog.
 Detailed change history is in the git log (every behaviour change is its own commit).
 Last updated: 2026-10-10 (live push, plugin 1.8.0.0 and Android app 1.5 added; see section 12).
 
@@ -8,7 +8,7 @@ Last updated: 2026-10-10 (live push, plugin 1.8.0.0 and Android app 1.5 added; s
 
 **What it is:** an Emby Server plugin (Emby 4.9/4.10, net6.0) that limits how long selected users can watch.
 Recovered by decompiling the original `WatchingEye.dll` v1.6.8.0 (original author unknown; GitHub repo deleted).
-Plugin GUID `e8c3b1b3-4f56-4f38-a28a-2e6c5a043007` and name "Watching Eye" are unchanged, so Emby treats it as the same plugin.
+Plugin GUID `e8c3b1b3-4f56-4f38-a28a-2e6c5a043007` is unchanged, so Emby treats it as the same plugin (the display name changed to "Hall Monitor" in 1.10, see section 13).
 
 **What it does now**
 - Per-user limits (only users listed under *Limited Users* are ever affected): daily / weekly / monthly / yearly caps, per-day limits, allowed time windows, resets, threshold warnings.
@@ -107,7 +107,7 @@ Reviewed: all C#, the config page (HTML + JS), csproj, embedded logo, NuGet depe
 - App repo, still to do by the user: add the tag and branch rulesets, enable Dependabot, make it public and then enable secret scanning / push protection and the outside-contributor approval setting.
 
 ## 7. GitHub backup
-2026-10-09: pushed to https://github.com/feerlessleadr/watching-eye-emby.git (branch `main` plus the three tags). The pushed history is a rewritten copy of the original local history: all commits are attributed to `feerlessleadr <github@thecgkg.com>` (no work email or username anywhere in metadata, messages or files) and `original/WatchingEye.dll` was removed from every commit (the README keeps its SHA-256).
+2026-10-09: pushed to https://github.com/feerlessleadr/hall-monitor-emby.git (then named watching-eye-emby) (branch `main` plus the three tags). The pushed history is a rewritten copy of the original local history: all commits are attributed to `feerlessleadr <github@thecgkg.com>` (no work email or username anywhere in metadata, messages or files) and `original/WatchingEye.dll` was removed from every commit (the README keeps its SHA-256).
 The same day this local repository was **switched to the published history** (`origin/main`), so local and GitHub now share the same commit hashes. Local git identity is set to the same author.
 Kept locally only (not published): the pre-switch history as `C:\dev\watching-eye-original-history.bundle` (contains the original DLL and the work email - do not publish), and the original binary at `original/WatchingEye.dll` (ignored by git) with a copy in `C:\dev\watching-eye-original-binary\`.
 
@@ -174,3 +174,10 @@ The user wants to make this repository public (2026-10-09). Audit before publish
 **Tested (the in-app screen lock tests below were for the lock that was later removed):** plugin regression suite (new checks for key length, one subscription per connection, access ending at once, now-playing, StopStream); app unit tests; an integration test that signs in with a regular account and runs the whole app flow against the test server; on an Android emulator: the PIN prompt on launch, no prompt within the grace period and a prompt after it, a locked cover that exposes nothing to accessibility tools, the lock-screen notification with Android's "hide sensitive content" setting, the regular-account token mode with live now-playing and Stop stream.
 **Not tested:** a real phone, a fingerprint prompt, Android versions below 12 (the notification-button unlock requirement needs Android 12+, older versions rely on the private notification and the receiver's locked-phone check), a reverse proxy.
 **For the user (GitHub side):** passkey or 2FA on the account; Settings -> Releases -> immutable releases; optionally move the signing secrets into the `release` environment restricted to tags `v*`; CodeQL default setup.
+
+## 13. Renamed to Hall Monitor (plugin 1.10.0.0, 2026-10-11)
+- **Why:** the plugin is a rewrite derived from a recovered original, not a fork that continues it, so it no longer shares the original's name. The user chose **Hall Monitor** (the GitHub repo is now `feerlessleadr/hall-monitor-emby`; the old address redirects).
+- **Changed (visible only):** the plugin name and description in Emby, the plugin page title, notification titles ("Hall Monitor: Time Limit Reached" ...), the log prefix `[Hall Monitor]`, the refusal text of the live push, the README, this file, `TESTING.md`, the issue template, the release title, the `gh attestation verify --repo` command, and the plugin image (replaced by the new Hall Monitor logo: two progress rings, one for the day and one for the week, around a play button; `assets/logo/` has the SVG and a PNG). Version 1.9.0.0 -> 1.10.0.0.
+- **Deliberately unchanged:** the plugin GUID, the DLL name `WatchingEye.dll` (so the GitHub downloader and the settings file `WatchingEye.xml` keep working), the namespaces, the page names, the web addresses `/emby/WatchingEye/...`, the `X-WatchingEye-Api-Key` header, the websocket message names (`WatchingEyeStatusStart`, `WatchingEyeStatus`) and the data files `WatchingEye.Logs.json` / `WatchingEye.WatchTime.json`. Reason: saved settings and every existing client (the old Watching Eye app, Embidextrous) depend on them. A later rename of these would need aliases and a settings migration.
+- **Checked:** nothing in the code builds a data path from `Plugin.Name`; the settings file name follows the DLL name, so the rename keeps settings.
+- **Regression suite on the test server:** 65 of 65 checks pass on 1.10.0.0 (run on an otherwise idle server). Two earlier runs failed only because another session was installing a plugin into, restarting and stopping the same shared test server at the time; the suite needs the server to itself.

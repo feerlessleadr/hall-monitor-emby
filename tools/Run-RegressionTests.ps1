@@ -1,4 +1,4 @@
-# End-to-end regression checks for the Watching Eye plugin against a TEST Emby server.
+# End-to-end regression checks for the Hall Monitor plugin against a TEST Emby server.
 #
 #   powershell -ExecutionPolicy Bypass -File tools\Run-RegressionTests.ps1 [-BaseUrl http://localhost:8096] [-KeyFile <path>] [-SkipEnforcement]
 #

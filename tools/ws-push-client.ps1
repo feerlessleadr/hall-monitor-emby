@@ -1,5 +1,5 @@
 # Acts as the Android app's live connection: connects to the Emby websocket (token sent as a header, never in the
-# URL), subscribes to the Watching Eye status push (and optionally to Emby's session push), and appends every message
+# URL), subscribes to the Hall Monitor status push (and optionally to Emby's session push), and appends every message
 # it receives to a log file. Used by the regression suite; run until the process is stopped.
 #
 #   powershell -ExecutionPolicy Bypass -File tools\ws-push-client.ps1 -Token <Emby token> -Out <file> [-PluginKey <key>] [-Sessions]

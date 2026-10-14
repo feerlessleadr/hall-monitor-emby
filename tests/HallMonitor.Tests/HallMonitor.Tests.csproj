@@ -10,6 +10,12 @@
   <ItemGroup>
     <!-- The ledger is plain C# without Emby types: compile it straight into the tests instead of referencing the plugin. -->
     <Compile Include="..\..\src\HallMonitor\HallMonitor\WatchLedger.cs" Link="WatchLedger.cs" />
+    <!-- The limit arithmetic and the plain types it reads are free of Emby types too. -->
+    <Compile Include="..\..\src\HallMonitor\HallMonitor\LimitCalculator.cs" Link="LimitCalculator.cs" />
+    <Compile Include="..\..\src\HallMonitor\HallMonitor\LimitedUser.cs" Link="LimitedUser.cs" />
+    <Compile Include="..\..\src\HallMonitor\HallMonitor\UserWatchData.cs" Link="UserWatchData.cs" />
+    <Compile Include="..\..\src\HallMonitor\HallMonitor\DailyLimitOverride.cs" Link="DailyLimitOverride.cs" />
+    <Compile Include="..\..\src\HallMonitor\HallMonitor\DailyTimeWindow.cs" Link="DailyTimeWindow.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />

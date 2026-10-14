@@ -204,14 +204,16 @@ try {
         $cfg.LimitedUsers[0].EnablePerDayLimits = $false
         Save-PluginConfig $cfg
         $row = Get-LimitedStatus $probe
-        $expectedFields = @('UserId', 'Username', 'DailyLimitMinutes', 'WeeklyLimitHours', 'MonthlyLimitHours', 'YearlyLimitHours', 'SecondsWatchedDaily', 'SecondsWatchedWeekly', 'SecondsWatchedMonthly', 'SecondsWatchedYearly', 'CreditSecondsDaily', 'CreditSecondsWeekly', 'CreditSecondsMonthly', 'CreditSecondsYearly', 'TimeOutUntil', 'EffectiveDailyLimitMinutes', 'IsEnabled', 'BlockReason', 'SecondsRemaining', 'LimitingPeriod', 'LimitingAllowedSeconds', 'ApiLevel', 'WatchedTodaySeconds', 'WatchedWeekSeconds', 'WatchedMonthSeconds', 'WatchedYearSeconds', 'WatchedTrackingSince')
+        $expectedFields = @('UserId', 'Username', 'DailyLimitMinutes', 'WeeklyLimitHours', 'MonthlyLimitHours', 'YearlyLimitHours', 'SecondsWatchedDaily', 'SecondsWatchedWeekly', 'SecondsWatchedMonthly', 'SecondsWatchedYearly', 'CreditSecondsDaily', 'CreditSecondsWeekly', 'CreditSecondsMonthly', 'CreditSecondsYearly', 'TimeOutUntil', 'EffectiveDailyLimitMinutes', 'IsEnabled', 'BlockReason', 'SecondsRemaining', 'LimitingPeriod', 'LimitingAllowedSeconds', 'ApiLevel', 'WatchedTodaySeconds', 'WatchedWeekSeconds', 'WatchedMonthSeconds', 'WatchedYearSeconds', 'WatchedTrackingSince', 'Limits')
         $missing = @($expectedFields | Where-Object { $row.PSObject.Properties.Name -notcontains $_ })
         Check 'Status contains every field the Android app reads plus the new ones' ($missing.Count -eq 0) "missing=[$($missing -join ',')]"
         Check 'Effective daily limit equals the daily limit' ($row.EffectiveDailyLimitMinutes -eq 60) "value=$($row.EffectiveDailyLimitMinutes)"
         Check 'Remaining time and the limiting period are reported' (($row.SecondsRemaining -ge 3500) -and ($row.SecondsRemaining -le 3600) -and ($row.LimitingPeriod -eq 'Daily') -and ($row.LimitingAllowedSeconds -eq 3600)) "remaining=$($row.SecondsRemaining) period=$($row.LimitingPeriod) allowed=$($row.LimitingAllowedSeconds)"
+        Check 'Limits lists the enabled limit with its allowance and percent used (ApiLevel 4)' ((@($row.Limits).Count -eq 1) -and ($row.Limits[0].Period -eq 'Daily') -and ($row.Limits[0].AllowedSeconds -eq 3600) -and ($row.Limits[0].PercentUsed -ge 0) -and ($row.Limits[0].PercentUsed -le 100) -and ($row.ApiLevel -ge 4)) "limits=$(@($row.Limits).Count) api=$($row.ApiLevel)"
         $cfg = Get-PluginConfig; $cfg.LimitedUsers[0].EnableDailyLimit = $false; Save-PluginConfig $cfg
         $noLimit = Get-LimitedStatus $probe
         Check 'No enabled limit reports -1 remaining' (($noLimit.SecondsRemaining -eq -1) -and ($noLimit.LimitingPeriod -eq '')) "remaining=$($noLimit.SecondsRemaining)"
+        Check 'No enabled limit gives an empty Limits list' (@($noLimit.Limits).Count -eq 0) "limits=$(@($noLimit.Limits).Count)"
         $cfg = Get-PluginConfig; $cfg.LimitedUsers[0].EnableDailyLimit = $true; Save-PluginConfig $cfg
         $cfg = Get-PluginConfig
         $today = (Get-Date).DayOfWeek.ToString()

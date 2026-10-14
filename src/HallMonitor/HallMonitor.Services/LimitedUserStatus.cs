@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace HallMonitor.Services;
 
@@ -67,6 +68,28 @@ public class LimitedUserStatus
 	/// <summary>The first day (yyyy-MM-dd) the watched-time ledger has for this user: totals before it were not recorded. Empty when there is nothing yet.</summary>
 	public string WatchedTrackingSince { get; set; } = string.Empty;
 
-	/// <summary>2 from plugin 1.9: the status says what is playing, so a missing NowPlaying means nothing is playing. 3 from plugin 2.1: also the watched-time totals (Watched...Seconds), and Reset only gives a fresh day.</summary>
-	public int ApiLevel { get; set; } = 3;
+	/// <summary>Every enabled limit of this user (daily, weekly, monthly, yearly) with its allowance, what was counted, what is left and the per cent used. LimitingPeriod and SecondsRemaining describe only the closest one of these. Empty when no limit applies. From plugin 2.2 (ApiLevel 4).</summary>
+	public List<LimitStatus> Limits { get; set; } = new List<LimitStatus>();
+
+	/// <summary>2 from plugin 1.9: the status says what is playing, so a missing NowPlaying means nothing is playing. 3 from plugin 2.1: also the watched-time totals (Watched...Seconds), and Reset only gives a fresh day. 4 from plugin 2.2: the Limits list.</summary>
+	public int ApiLevel { get; set; } = 4;
+}
+
+/// <summary>One enabled limit of a user, as reported in <see cref="LimitedUserStatus.Limits"/>.</summary>
+public class LimitStatus
+{
+	/// <summary>Daily, Weekly, Monthly or Yearly.</summary>
+	public string Period { get; set; } = string.Empty;
+
+	/// <summary>The limit plus any extra time added for this period, in seconds.</summary>
+	public double AllowedSeconds { get; set; }
+
+	/// <summary>What the limiter has counted in this period, in seconds.</summary>
+	public double WatchedSeconds { get; set; }
+
+	/// <summary>Seconds left before this limit is reached (never below 0).</summary>
+	public double RemainingSeconds { get; set; }
+
+	/// <summary>Whole per cent of the allowance used, 0 to 100 (100 means the limit is reached).</summary>
+	public int PercentUsed { get; set; }
 }

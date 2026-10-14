@@ -86,7 +86,8 @@ public static class LimitCalculator
 		double allowedSeconds = allowed.TotalSeconds;
 		double watchedSeconds = TimeSpan.FromTicks(watchedTicks).TotalSeconds;
 		double remaining = Math.Max(0.0, allowedSeconds - watchedSeconds);
-		int percent = allowedSeconds > 0.0 ? (int)Math.Floor(Math.Min(watchedSeconds, allowedSeconds) / allowedSeconds * 100.0) : 0;
+		// An allowance of zero or less (time taken away down to nothing) means the limit is used up.
+		int percent = allowedSeconds > 0.0 ? (int)Math.Floor(Math.Min(watchedSeconds, allowedSeconds) / allowedSeconds * 100.0) : 100;
 		return new LimitSnapshot
 		{
 			Period = period,

@@ -130,4 +130,38 @@ public class LimitCalculatorTests
 		Assert.Equal(120, LimitCalculator.EffectiveDailyLimitMinutes(user, DayOfWeek.Wednesday)); // no override for the day
 		Assert.Equal(14400, LimitCalculator.EnabledLimits(user, new UserWatchData(), DayOfWeek.Saturday).Single().AllowedSeconds);
 	}
+
+	[Fact]
+	public void TimeTakenAwayLowersTheAllowanceBelowTheLimit()
+	{
+		// 2 h daily, 1 h watched, then 30 minutes taken away (a negative credit): 90 minutes allowed, 30 left.
+		var user = User(dailyMinutes: 120, daily: true);
+		var data = new UserWatchData { WatchedTimeTicksDaily = Minutes(60), TimeCreditTicksDaily = -Minutes(30) };
+
+		var limit = LimitCalculator.EnabledLimits(user, data, Monday).Single();
+
+		Assert.Equal(5400, limit.AllowedSeconds);
+		Assert.Equal(1800, limit.RemainingSeconds);
+		Assert.Equal(66, limit.PercentUsed);
+	}
+
+	[Fact]
+	public void TakingAwayAllTheRemainingTimeReadsAsUsedUpAndNeverNegative()
+	{
+		// 1 h watched of 2 h, then the remaining hour taken away: the allowance equals what was watched.
+		var user = User(dailyMinutes: 120, daily: true);
+		var data = new UserWatchData { WatchedTimeTicksDaily = Minutes(60), TimeCreditTicksDaily = -Minutes(60) };
+
+		var limit = LimitCalculator.EnabledLimits(user, data, Monday).Single();
+
+		Assert.Equal(3600, limit.AllowedSeconds);
+		Assert.Equal(0, limit.RemainingSeconds);
+		Assert.Equal(100, limit.PercentUsed);
+
+		// Nothing watched and everything taken away: an allowance of zero is "used up", not "no limit" and not a negative number.
+		var nothing = LimitCalculator.EnabledLimits(user, new UserWatchData { TimeCreditTicksDaily = -Minutes(120) }, Monday).Single();
+		Assert.Equal(0, nothing.AllowedSeconds);
+		Assert.Equal(0, nothing.RemainingSeconds);
+		Assert.Equal(100, nothing.PercentUsed);
+	}
 }

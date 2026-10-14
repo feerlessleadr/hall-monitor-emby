@@ -847,7 +847,8 @@ public static class WatchTimeManager
 	private static long AddCredit(long current, long add)
 	{
 		long num = ((add > 0 && current > MaxCreditTicks - add) ? MaxCreditTicks : (current + add));
-		return Math.Clamp(num, 0L, MaxCreditTicks);
+		// Extra time can be taken back past zero (a negative credit lowers the allowance below the limit); a reset puts it back to zero.
+		return Math.Clamp(num, -MaxCreditTicks, MaxCreditTicks);
 	}
 
 	private static string? ValidateMinutes(int minutes)
@@ -1210,10 +1211,10 @@ public static class WatchTimeManager
 				userWatchTime.WatchedTimeTicksWeekly = Math.Max(0L, userWatchTime.WatchedTimeTicksWeekly);
 				userWatchTime.WatchedTimeTicksMonthly = Math.Max(0L, userWatchTime.WatchedTimeTicksMonthly);
 				userWatchTime.WatchedTimeTicksYearly = Math.Max(0L, userWatchTime.WatchedTimeTicksYearly);
-				userWatchTime.TimeCreditTicksDaily = Math.Clamp(userWatchTime.TimeCreditTicksDaily, 0L, MaxCreditTicks);
-				userWatchTime.TimeCreditTicksWeekly = Math.Clamp(userWatchTime.TimeCreditTicksWeekly, 0L, MaxCreditTicks);
-				userWatchTime.TimeCreditTicksMonthly = Math.Clamp(userWatchTime.TimeCreditTicksMonthly, 0L, MaxCreditTicks);
-				userWatchTime.TimeCreditTicksYearly = Math.Clamp(userWatchTime.TimeCreditTicksYearly, 0L, MaxCreditTicks);
+				userWatchTime.TimeCreditTicksDaily = Math.Clamp(userWatchTime.TimeCreditTicksDaily, -MaxCreditTicks, MaxCreditTicks);
+				userWatchTime.TimeCreditTicksWeekly = Math.Clamp(userWatchTime.TimeCreditTicksWeekly, -MaxCreditTicks, MaxCreditTicks);
+				userWatchTime.TimeCreditTicksMonthly = Math.Clamp(userWatchTime.TimeCreditTicksMonthly, -MaxCreditTicks, MaxCreditTicks);
+				userWatchTime.TimeCreditTicksYearly = Math.Clamp(userWatchTime.TimeCreditTicksYearly, -MaxCreditTicks, MaxCreditTicks);
 				if (userWatchTime.WatchedTimeTicks > 0 && userWatchTime.WatchedTimeTicksDaily == 0)
 				{
 					userWatchTime.WatchedTimeTicksDaily = userWatchTime.WatchedTimeTicks;

@@ -85,7 +85,12 @@ try {
     Get-Status 'POST' '/HallMonitor/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 10 } | Out-Null
     Check 'ReduceTime takes back part of an extension' (((Get-Status 'POST' '/HallMonitor/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 4 }) -eq 204) -and ((Get-LimitedStatus $probe).CreditSecondsDaily -eq 360)) "credit=$((Get-LimitedStatus $probe).CreditSecondsDaily) s (expected 360)"
     Get-Status 'POST' '/HallMonitor/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 43200 } | Out-Null
-    Check 'ReduceTime never takes the credit below zero' ((Get-LimitedStatus $probe).CreditSecondsDaily -eq 0) "credit=$((Get-LimitedStatus $probe).CreditSecondsDaily)"
+    # Since 2.3 ReduceTime can take away more than the extra time that was added (the allowance drops below the limit); it still never overflows.
+    $creditAfter = (Get-LimitedStatus $probe).CreditSecondsDaily
+    Check 'ReduceTime can take time away past the extra time and never overflows' (($creditAfter -lt 0) -and ($creditAfter -ge -(3650 * 86400))) "credit=$creditAfter"
+    $statusAfter = Get-LimitedStatus $probe
+    Check 'A taken-away allowance never reads as negative time left' (($statusAfter.SecondsRemaining -ge 0) -and ($statusAfter.Limits.Count -eq 0 -or $statusAfter.Limits[0].RemainingSeconds -ge 0)) "remaining=$($statusAfter.SecondsRemaining)"
+    Get-Status 'POST' '/HallMonitor/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
     Check 'ReduceTime zero/over-cap/unknown user are rejected' (((Get-Status 'POST' '/HallMonitor/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 0 }) -eq 400) -and ((Get-Status 'POST' '/HallMonitor/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 43201 }) -eq 400) -and ((Get-Status 'POST' '/HallMonitor/ReduceTime' $script:Admin @{ UserId = 'nobody'; Minutes = 5 }) -eq 400))
     Check 'Non-admin is refused: POST /HallMonitor/ReduceTime' ((Get-Status 'POST' '/HallMonitor/ReduceTime' $viaProbe @{ UserId = $probe.Id; Minutes = 5 }) -eq 403)
     Check 'Public ReduceTime without the key is refused, with the key works' (((Get-Status 'POST' '/HallMonitor/Public/ReduceTime' $script:Admin @{ UserId = $probe.Id; Minutes = 5 }) -eq 403) -and ((Get-Status 'POST' '/HallMonitor/Public/ReduceTime' ($script:Admin + $key) @{ UserId = $probe.Id; Minutes = 5 }) -eq 204))

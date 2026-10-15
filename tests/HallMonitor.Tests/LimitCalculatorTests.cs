@@ -108,10 +108,58 @@ public class LimitCalculatorTests
 	}
 
 	[Fact]
-	public void AZeroLimitIsNotAnEnabledLimit()
+	public void AZeroLimitIsARealLimitWithNoTimeLeft()
 	{
 		var user = User(dailyMinutes: 0, weeklyHours: 0, daily: true, weekly: true);
+		var limits = LimitCalculator.EnabledLimits(user, new UserWatchData(), Monday);
+		Assert.Equal(new[] { "Daily", "Weekly" }, limits.Select(l => l.Period).ToArray());
+		Assert.All(limits, l =>
+		{
+			Assert.Equal(0, l.AllowedSeconds);
+			Assert.Equal(0, l.RemainingSeconds);
+			Assert.Equal(100, l.PercentUsed);
+		});
+		Assert.True(LimitCalculator.IsExceeded(user, new UserWatchData(), Monday));
+	}
+
+	[Fact]
+	public void AZeroLimitSwitchedOffStaysUnlimited()
+	{
+		var user = User(dailyMinutes: 0, weeklyHours: 0, daily: false, weekly: false);
 		Assert.Empty(LimitCalculator.EnabledLimits(user, new UserWatchData(), Monday));
+		Assert.False(LimitCalculator.IsExceeded(user, new UserWatchData(), Monday));
+	}
+
+	[Fact]
+	public void ExtraTimeOnAZeroWeeklyLimitGivesExactlyThatMuchTime()
+	{
+		// The chore flow: weekly limit 0, then 45 minutes are added, and 20 minutes get watched.
+		var user = User(weeklyHours: 0, weekly: true);
+		var data = new UserWatchData { TimeCreditTicksWeekly = Minutes(45), WatchedTimeTicksWeekly = Minutes(20) };
+
+		var limit = LimitCalculator.EnabledLimits(user, data, Monday).Single();
+
+		Assert.Equal(2700, limit.AllowedSeconds);
+		Assert.Equal(1500, limit.RemainingSeconds);
+		Assert.Equal(44, limit.PercentUsed);
+		Assert.False(LimitCalculator.IsExceeded(user, data, Monday));
+
+		// Using up the rest blocks again, to the second.
+		data.WatchedTimeTicksWeekly = Minutes(45);
+		Assert.True(LimitCalculator.IsExceeded(user, data, Monday));
+	}
+
+	[Fact]
+	public void AZeroPerDayLimitIsRealAndADayWithoutAnOverrideStaysUnlimitedWhenTheDailyLimitIsOff()
+	{
+		var user = User(dailyMinutes: 120, daily: false);
+		user.EnablePerDayLimits = true;
+		user.PerDayLimits = new List<DailyLimitOverride> { new DailyLimitOverride { Day = DayOfWeek.Monday, IsEnabled = true, LimitMinutes = 0 } };
+
+		Assert.Equal(0, LimitCalculator.TodaysDailyLimitMinutes(user, DayOfWeek.Monday));
+		Assert.Null(LimitCalculator.TodaysDailyLimitMinutes(user, DayOfWeek.Tuesday));
+		Assert.True(LimitCalculator.IsExceeded(user, new UserWatchData(), DayOfWeek.Monday));
+		Assert.False(LimitCalculator.IsExceeded(user, new UserWatchData { WatchedTimeTicksDaily = Hours(10) }, DayOfWeek.Tuesday));
 	}
 
 	[Fact]

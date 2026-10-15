@@ -5,6 +5,8 @@
 Emby Server plugin that limits how long selected users can watch: per-user daily / weekly / monthly / yearly caps,
 per-day limits, allowed time windows, extra time, and time-outs. Only users listed under *Limited Users* are affected.
 
+> **Version 2.4 lets a limit be 0, and 0 means "no time left"** (it no longer means unlimited). A limit is off only when its *Enable* switch is off. With a weekly limit of 0 and the weekly reset on, a child can watch only the time you add (the app's "+" buttons, or `POST /HallMonitor/Public/ExtendTime` from an automation) and each reset takes it back to nothing. Negative limits are still refused. The status reports `ApiLevel` 6; `Limits` lists a 0 limit as used up (100%, 0 seconds allowed).
+
 > **Version 2.3 lets "Reduce time" take away more than the extra time that was added** (down to nothing, never below zero), which the Embidextrous app 0.10 uses for its "-30 min" button. The status reports `ApiLevel` 5.
 
 > **Version 2.1 keeps a permanent record of time watched.** The plugin page and the status the phone app reads now show how long each user has really watched today, this week (Monday to Sunday), this month and this year. A reset never changes these totals, and the per-user reset button (and the app's "Reset today's time") now only gives a fresh day: it zeroes the daily counter and the extra time added today, not the weekly, monthly or yearly limiter counters. The record starts the day you install 2.1. See the end of `PROGRESS.md` for the status fields.

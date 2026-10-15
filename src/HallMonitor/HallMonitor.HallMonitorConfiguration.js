@@ -374,24 +374,24 @@
                             usedPerDayOverride = true;
                         }
                     }
-                    if (effectiveDailyLimitMinutes > 0) {
+                    if (user.EnableDailyLimit || usedPerDayOverride) {
                         const watched = formatHoursMinutes(status ? status.SecondsWatchedDaily : 0);
                         const limit = formatHoursMinutes(effectiveDailyLimitMinutes * 60 + (status ? status.CreditSecondsDaily : 0));
                         const label = usedPerDayOverride ? "Today's time limit used" : "Daily time limit used";
                         periodRows.push({ label, value: `${watched}/${limit}`, period: 'daily' });
                     }
                 }
-                if (user.EnableWeeklyLimit && user.WeeklyLimitHours > 0) {
+                if (user.EnableWeeklyLimit) {
                     const watched = formatHoursMinutes(status ? status.SecondsWatchedWeekly : 0);
                     const limit = formatHoursMinutes(user.WeeklyLimitHours * 3600 + (status ? status.CreditSecondsWeekly : 0));
                     periodRows.push({ label: 'Weekly time limit used', value: `${watched}/${limit}`, period: 'weekly' });
                 }
-                if (user.EnableMonthlyLimit && user.MonthlyLimitHours > 0) {
+                if (user.EnableMonthlyLimit) {
                     const watched = formatHoursMinutes(status ? status.SecondsWatchedMonthly : 0);
                     const limit = formatHoursMinutes(user.MonthlyLimitHours * 3600 + (status ? status.CreditSecondsMonthly : 0));
                     periodRows.push({ label: 'Monthly time limit used', value: `${watched}/${limit}`, period: 'monthly' });
                 }
-                if (user.EnableYearlyLimit && user.YearlyLimitHours > 0) {
+                if (user.EnableYearlyLimit) {
                     const watched = formatHoursMinutes(status ? status.SecondsWatchedYearly : 0);
                     const limit = formatHoursMinutes(user.YearlyLimitHours * 3600 + (status ? status.CreditSecondsYearly : 0));
                     periodRows.push({ label: 'Yearly time limit used', value: `${watched}/${limit}`, period: 'yearly' });
@@ -501,7 +501,7 @@
                     return d === index;
                 });
                 const isChecked = override ? (override.IsEnabled || false) : false;
-                const limitMins = override ? (override.LimitMinutes || user.DailyLimitMinutes || 120) : (user.DailyLimitMinutes || 120);
+                const limitMins = override ? (override.LimitMinutes ?? user.DailyLimitMinutes ?? 120) : (user.DailyLimitMinutes ?? 120);
                 return `
                 <div class="day-limit-row" data-day="${index}" style="display: flex; align-items: center; gap: 1em; margin-bottom: 0.8em; flex-wrap: wrap;">
                     <div style="width: 120px; flex-shrink: 0;">
@@ -533,19 +533,19 @@
                 <div id="tab-limits" class="user-editor-tab-content">
                     <div class="inputContainer">
                          <label class="checkboxContainer"><input is="emby-checkbox" type="checkbox" class="edit-enable-daily" ${user.EnableDailyLimit ? 'checked' : ''} /><span>Enable Daily Limit</span></label>
-                         <input is="emby-input" class="edit-daily-minutes" type="number" label="Daily Limit (Minutes):" value="${user.DailyLimitMinutes || 120}" />
+                         <input is="emby-input" class="edit-daily-minutes" type="number" label="Daily Limit (Minutes):" value="${user.DailyLimitMinutes ?? 120}" min="0" />
                     </div>
                     <div class="inputContainer">
                          <label class="checkboxContainer"><input is="emby-checkbox" type="checkbox" class="edit-enable-weekly" ${user.EnableWeeklyLimit ? 'checked' : ''} /><span>Enable Weekly Limit</span></label>
-                         <input is="emby-input" class="edit-weekly-hours" type="number" label="Weekly Limit (Hours):" value="${user.WeeklyLimitHours || 20}" />
+                         <input is="emby-input" class="edit-weekly-hours" type="number" label="Weekly Limit (Hours):" value="${user.WeeklyLimitHours ?? 20}" min="0" />
                     </div>
                      <div class="inputContainer">
                          <label class="checkboxContainer"><input is="emby-checkbox" type="checkbox" class="edit-enable-monthly" ${user.EnableMonthlyLimit ? 'checked' : ''} /><span>Enable Monthly Limit</span></label>
-                         <input is="emby-input" class="edit-monthly-hours" type="number" label="Monthly Limit (Hours):" value="${user.MonthlyLimitHours || 80}" />
+                         <input is="emby-input" class="edit-monthly-hours" type="number" label="Monthly Limit (Hours):" value="${user.MonthlyLimitHours ?? 80}" min="0" />
                     </div>
                      <div class="inputContainer">
                          <label class="checkboxContainer"><input is="emby-checkbox" type="checkbox" class="edit-enable-yearly" ${user.EnableYearlyLimit ? 'checked' : ''} /><span>Enable Yearly Limit</span></label>
-                         <input is="emby-input" class="edit-yearly-hours" type="number" label="Yearly Limit (Hours):" value="${user.YearlyLimitHours || 0}" />
+                         <input is="emby-input" class="edit-yearly-hours" type="number" label="Yearly Limit (Hours):" value="${user.YearlyLimitHours ?? 0}" min="0" />
                     </div>
                     <div class="inputContainer" style="margin-top: 1em;">
                         <label class="checkboxContainer"><input is="emby-checkbox" type="checkbox" class="edit-enable-per-day-limits" ${user.EnablePerDayLimits ? 'checked' : ''} /><span>Use different limits per day of the week</span></label>
@@ -684,7 +684,8 @@
 
             editorContainer.querySelectorAll('.day-limit-row').forEach(row => {
                 const dayIndex = parseInt(row.getAttribute('data-day')) || 0;
-                const limitMins = parseInt(row.querySelector('.edit-day-limit-minutes').value) || 120;
+                const parsedMins = parseInt(row.querySelector('.edit-day-limit-minutes').value);
+                const limitMins = Number.isNaN(parsedMins) ? 120 : parsedMins;
                 userData.PerDayLimits.push({
                     Day: dayNames[dayIndex],
                     IsEnabled: row.querySelector('.edit-day-limit-enabled').checked,
@@ -693,19 +694,19 @@
             });
 
             const limitChecks = [
-                [userData.EnableDailyLimit, userData.DailyLimitMinutes, 1, 1440, 'Daily limit (minutes)'],
-                [userData.EnableWeeklyLimit, userData.WeeklyLimitHours, 1, 168, 'Weekly limit (hours)'],
-                [userData.EnableMonthlyLimit, userData.MonthlyLimitHours, 1, 744, 'Monthly limit (hours)'],
-                [userData.EnableYearlyLimit, userData.YearlyLimitHours, 1, 8784, 'Yearly limit (hours)']
+                [userData.EnableDailyLimit, userData.DailyLimitMinutes, 0, 1440, 'Daily limit (minutes)'],
+                [userData.EnableWeeklyLimit, userData.WeeklyLimitHours, 0, 168, 'Weekly limit (hours)'],
+                [userData.EnableMonthlyLimit, userData.MonthlyLimitHours, 0, 744, 'Monthly limit (hours)'],
+                [userData.EnableYearlyLimit, userData.YearlyLimitHours, 0, 8784, 'Yearly limit (hours)']
             ];
             for (const [enabled, value, min, max, label] of limitChecks) {
                 if (enabled && (!Number.isFinite(value) || value < min || value > max)) {
-                    toast({ type: 'error', text: `${label} must be between ${min} and ${max} when its limit is enabled (0 would mean no limit).` });
+                    toast({ type: 'error', text: `${label} must be between ${min} and ${max} when its limit is enabled (0 means no time at all until extra time is added).` });
                     return;
                 }
             }
-            if (userData.EnablePerDayLimits && userData.PerDayLimits.some(d => d.IsEnabled && (d.LimitMinutes < 1 || d.LimitMinutes > 1440))) {
-                toast({ type: 'error', text: 'Per-day limits must be between 1 and 1440 minutes.' });
+            if (userData.EnablePerDayLimits && userData.PerDayLimits.some(d => d.IsEnabled && (d.LimitMinutes < 0 || d.LimitMinutes > 1440))) {
+                toast({ type: 'error', text: 'Per-day limits must be between 0 and 1440 minutes.' });
                 return;
             }
 

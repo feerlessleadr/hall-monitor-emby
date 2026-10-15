@@ -72,7 +72,7 @@ public class LimitedUserStatus
 	public List<LimitStatus> Limits { get; set; } = new List<LimitStatus>();
 
 	/// <summary>2 from plugin 1.9: the status says what is playing, so a missing NowPlaying means nothing is playing. 3 from plugin 2.1: also the watched-time totals (Watched...Seconds), and Reset only gives a fresh day. 4 from plugin 2.2: the Limits list. 5 from plugin 2.3: ReduceTime can take away more than the extra time that was added (the allowance can go below the limit, down to nothing).</summary>
-	public int ApiLevel { get; set; } = 5;
+	public int ApiLevel { get; set; } = 6;
 }
 
 /// <summary>One enabled limit of a user, as reported in <see cref="LimitedUserStatus.Limits"/>.</summary>

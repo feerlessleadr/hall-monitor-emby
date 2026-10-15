@@ -31,8 +31,8 @@ public static class ConfigurationValidator
 	}
 
 	/// <summary>
-	/// Returns an error message when an enabled limit is zero or blank. A limit of 0 would silently mean
-	/// "no limit", so such a configuration is rejected instead of saved.
+	/// Returns an error message when an enabled limit is negative. A limit of 0 is allowed and means "no time at all"
+	/// (until extra time is added); a limit is only off when its Enable switch is off.
 	/// </summary>
 	public static string? FindInvalidLimit(PluginConfiguration config)
 	{
@@ -43,25 +43,25 @@ public static class ConfigurationValidator
 				continue;
 			}
 			string name = LogSanitizer.CleanText(string.IsNullOrWhiteSpace(user.Username) ? user.UserId : user.Username);
-			if (user.EnableDailyLimit && user.DailyLimitMinutes < 1)
+			if (user.EnableDailyLimit && user.DailyLimitMinutes < 0)
 			{
-				return name + ": the daily limit must be at least 1 minute when it is enabled (0 would mean no limit).";
+				return name + ": the daily limit cannot be negative (use 0 for no time at all).";
 			}
-			if (user.EnableWeeklyLimit && user.WeeklyLimitHours < 1)
+			if (user.EnableWeeklyLimit && user.WeeklyLimitHours < 0)
 			{
-				return name + ": the weekly limit must be at least 1 hour when it is enabled (0 would mean no limit).";
+				return name + ": the weekly limit cannot be negative (use 0 for no time at all).";
 			}
-			if (user.EnableMonthlyLimit && user.MonthlyLimitHours < 1)
+			if (user.EnableMonthlyLimit && user.MonthlyLimitHours < 0)
 			{
-				return name + ": the monthly limit must be at least 1 hour when it is enabled (0 would mean no limit).";
+				return name + ": the monthly limit cannot be negative (use 0 for no time at all).";
 			}
-			if (user.EnableYearlyLimit && user.YearlyLimitHours < 1)
+			if (user.EnableYearlyLimit && user.YearlyLimitHours < 0)
 			{
-				return name + ": the yearly limit must be at least 1 hour when it is enabled (0 would mean no limit).";
+				return name + ": the yearly limit cannot be negative (use 0 for no time at all).";
 			}
-			if (user.EnablePerDayLimits && (user.PerDayLimits ?? new List<DailyLimitOverride>()).Any((DailyLimitOverride o) => o != null && o.IsEnabled && o.LimitMinutes < 1))
+			if (user.EnablePerDayLimits && (user.PerDayLimits ?? new List<DailyLimitOverride>()).Any((DailyLimitOverride o) => o != null && o.IsEnabled && o.LimitMinutes < 0))
 			{
-				return name + ": per-day limits must be at least 1 minute when enabled (0 would mean no limit).";
+				return name + ": per-day limits cannot be negative (use 0 for no time at all).";
 			}
 		}
 		return null;

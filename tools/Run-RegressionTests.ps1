@@ -197,10 +197,21 @@ try {
     Check 'Out-of-range reset hour and limit are clamped' (($saved.ResetTimeOfDayHours -le 23.99) -and ($saved.DailyLimitMinutes -le 1440)) "hour=$($saved.ResetTimeOfDayHours) minutes=$($saved.DailyLimitMinutes)"
     $bad = Get-PluginConfig
     $bad.LimitedUsers[0].EnableDailyLimit = $true
-    $bad.LimitedUsers[0].DailyLimitMinutes = 0
+    $bad.LimitedUsers[0].DailyLimitMinutes = -5
     $badCode = Get-Status 'POST' "/Plugins/$($script:PluginId)/Configuration" $script:Admin $bad
-    Check 'A config with an enabled limit of 0 is refused' (($badCode -ge 400) -and ($badCode -lt 500)) "HTTP $badCode"
-    Check 'The refused config was not saved' ((Get-PluginConfig).LimitedUsers[0].DailyLimitMinutes -ge 1)
+    Check 'A config with an enabled negative limit is refused' (($badCode -ge 400) -and ($badCode -lt 500)) "HTTP $badCode"
+    Check 'The refused config was not saved' ((Get-PluginConfig).LimitedUsers[0].DailyLimitMinutes -ge 0)
+    $zero = Get-PluginConfig
+    $zero.LimitedUsers[0].EnableDailyLimit = $true
+    $zero.LimitedUsers[0].DailyLimitMinutes = 0
+    $zeroCode = Get-Status 'POST' "/Plugins/$($script:PluginId)/Configuration" $script:Admin $zero
+    Check 'A config with an enabled limit of 0 is accepted (0 means no time left)' (($zeroCode -ge 200) -and ($zeroCode -lt 300)) "HTTP $zeroCode"
+    $zeroRow = Get-LimitedStatus $probe
+    Check 'A limit of 0 blocks at once and is listed as used up' (($zeroRow.BlockReason -eq 'TimeLimitExceeded') -and (@($zeroRow.Limits).Count -ge 1) -and ($zeroRow.Limits[0].PercentUsed -eq 100) -and ($zeroRow.Limits[0].AllowedSeconds -eq 0)) "block=$($zeroRow.BlockReason) limits=$(@($zeroRow.Limits).Count)"
+    Get-Status 'POST' '/HallMonitor/ExtendTime' $script:Admin @{ UserId = $probe.Id; Minutes = 30 } | Out-Null
+    $extRow = Get-LimitedStatus $probe
+    Check 'Extra time on a limit of 0 gives exactly that much time' (($extRow.BlockReason -eq 'Allowed') -and ($extRow.Limits[0].AllowedSeconds -eq 1800) -and ($extRow.Limits[0].RemainingSeconds -eq 1800)) "block=$($extRow.BlockReason) allowed=$($extRow.Limits[0].AllowedSeconds)"
+    Get-Status 'POST' '/HallMonitor/ResetUserTime' $script:Admin @{ UserId = $probe.Id } | Out-Null
 
     if (-not $SkipEnforcement) {
         Write-Host "== Status contract for client apps (about 70 seconds)"

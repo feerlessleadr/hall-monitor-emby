@@ -29,41 +29,59 @@ public class LimitSnapshot
 /// </summary>
 public static class LimitCalculator
 {
-	/// <summary>Today's daily limit in minutes: the per-day override for <paramref name="today"/> when per-day limits are on, otherwise the plain daily limit.</summary>
-	public static int EffectiveDailyLimitMinutes(LimitedUser user, DayOfWeek today)
+	/// <summary>
+	/// Today's daily limit in minutes, or null when no daily limit applies today: the per-day override for <paramref name="today"/> when
+	/// per-day limits are on, otherwise the plain daily limit (only when it is switched on). A limit of 0 is a real limit (no time at all
+	/// until extra time is added), so "no limit" is null and never 0.
+	/// </summary>
+	public static int? TodaysDailyLimitMinutes(LimitedUser user, DayOfWeek today)
 	{
 		if (!user.EnablePerDayLimits || user.PerDayLimits == null || !user.PerDayLimits.Any())
 		{
-			return user.DailyLimitMinutes;
+			return user.EnableDailyLimit ? user.DailyLimitMinutes : null;
 		}
-		return user.PerDayLimits.FirstOrDefault((DailyLimitOverride o) => o.Day == today && o.IsEnabled)?.LimitMinutes ?? (user.EnableDailyLimit ? user.DailyLimitMinutes : 0);
+		DailyLimitOverride? match = user.PerDayLimits.FirstOrDefault((DailyLimitOverride o) => o.Day == today && o.IsEnabled);
+		if (match != null)
+		{
+			return match.LimitMinutes;
+		}
+		return user.EnableDailyLimit ? user.DailyLimitMinutes : null;
 	}
 
-	/// <summary>Every enabled limit with a limit above zero, in the order daily, weekly, monthly, yearly.</summary>
+	/// <summary>Today's daily limit in minutes; 0 when there is none or the limit is 0 (use <see cref="TodaysDailyLimitMinutes"/> to tell those apart, or the Limits list of the status).</summary>
+	public static int EffectiveDailyLimitMinutes(LimitedUser user, DayOfWeek today)
+	{
+		return TodaysDailyLimitMinutes(user, today) ?? 0;
+	}
+
+	/// <summary>Every enabled limit (a limit of 0 included: it means no time left until extra time is added), in the order daily, weekly, monthly, yearly.</summary>
 	public static List<LimitSnapshot> EnabledLimits(LimitedUser user, UserWatchData data, DayOfWeek today)
 	{
 		List<LimitSnapshot> list = new List<LimitSnapshot>();
-		if (user.EnableDailyLimit || user.EnablePerDayLimits)
+		int? dailyMinutes = TodaysDailyLimitMinutes(user, today);
+		if (dailyMinutes.HasValue)
 		{
-			int minutes = EffectiveDailyLimitMinutes(user, today);
-			if (minutes > 0)
-			{
-				list.Add(Snapshot("Daily", TimeSpan.FromMinutes(minutes), data.TimeCreditTicksDaily, data.WatchedTimeTicksDaily));
-			}
+			list.Add(Snapshot("Daily", TimeSpan.FromMinutes(dailyMinutes.Value), data.TimeCreditTicksDaily, data.WatchedTimeTicksDaily));
 		}
-		if (user.EnableWeeklyLimit && user.WeeklyLimitHours > 0)
+		if (user.EnableWeeklyLimit)
 		{
 			list.Add(Snapshot("Weekly", TimeSpan.FromHours(user.WeeklyLimitHours), data.TimeCreditTicksWeekly, data.WatchedTimeTicksWeekly));
 		}
-		if (user.EnableMonthlyLimit && user.MonthlyLimitHours > 0)
+		if (user.EnableMonthlyLimit)
 		{
 			list.Add(Snapshot("Monthly", TimeSpan.FromHours(user.MonthlyLimitHours), data.TimeCreditTicksMonthly, data.WatchedTimeTicksMonthly));
 		}
-		if (user.EnableYearlyLimit && user.YearlyLimitHours > 0)
+		if (user.EnableYearlyLimit)
 		{
 			list.Add(Snapshot("Yearly", TimeSpan.FromHours(user.YearlyLimitHours), data.TimeCreditTicksYearly, data.WatchedTimeTicksYearly));
 		}
 		return list;
+	}
+
+	/// <summary>True when any enabled limit has been reached (watched time at or above the limit plus extra time).</summary>
+	public static bool IsExceeded(LimitedUser user, UserWatchData data, DayOfWeek today)
+	{
+		return EnabledLimits(user, data, today).Any((LimitSnapshot l) => l.WatchedSeconds >= l.AllowedSeconds);
 	}
 
 	/// <summary>The limit with the least time left (the first one wins a tie), or null when the user has no limit.</summary>

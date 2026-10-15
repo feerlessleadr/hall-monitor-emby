@@ -439,27 +439,8 @@ public static class WatchTimeManager
 
 	private static bool IsTimeLimitExceeded(LimitedUser userConfig, UserWatchData userData)
 	{
-		if (userConfig.EnableDailyLimit || userConfig.EnablePerDayLimits)
-		{
-			int effectiveDailyLimitMinutes = GetEffectiveDailyLimitMinutes(userConfig);
-			if (effectiveDailyLimitMinutes > 0 && userData.WatchedTimeTicksDaily >= TimeSpan.FromMinutes(effectiveDailyLimitMinutes).Ticks + userData.TimeCreditTicksDaily)
-			{
-				return true;
-			}
-		}
-		if (userConfig.EnableWeeklyLimit && userConfig.WeeklyLimitHours > 0 && userData.WatchedTimeTicksWeekly >= TimeSpan.FromHours(userConfig.WeeklyLimitHours).Ticks + userData.TimeCreditTicksWeekly)
-		{
-			return true;
-		}
-		if (userConfig.EnableMonthlyLimit && userConfig.MonthlyLimitHours > 0 && userData.WatchedTimeTicksMonthly >= TimeSpan.FromHours(userConfig.MonthlyLimitHours).Ticks + userData.TimeCreditTicksMonthly)
-		{
-			return true;
-		}
-		if (userConfig.EnableYearlyLimit && userConfig.YearlyLimitHours > 0 && userData.WatchedTimeTicksYearly >= TimeSpan.FromHours(userConfig.YearlyLimitHours).Ticks + userData.TimeCreditTicksYearly)
-		{
-			return true;
-		}
-		return false;
+		// A limit of 0 is a real limit: no time at all until extra time is added.
+		return LimitCalculator.IsExceeded(userConfig, userData, DateTime.Now.DayOfWeek);
 	}
 
 	public static PlaybackBlockReason GetPlaybackBlockReason(string userId)
@@ -519,26 +500,24 @@ public static class WatchTimeManager
 			return;
 		}
 		string userId = session.UserId;
-		if (userConfig.EnableDailyLimit || userConfig.EnablePerDayLimits)
+		// A limit of 0 plus extra time still has an allowance (CheckAndSendThresholdNotification skips an allowance of 0 or less).
+		int? dailyLimitMinutes = LimitCalculator.TodaysDailyLimitMinutes(userConfig, DateTime.Now.DayOfWeek);
+		if (dailyLimitMinutes.HasValue)
 		{
-			int effectiveDailyLimitMinutes = GetEffectiveDailyLimitMinutes(userConfig);
-			if (effectiveDailyLimitMinutes > 0)
-			{
-				TimeSpan limit = TimeSpan.FromMinutes(effectiveDailyLimitMinutes) + TimeSpan.FromTicks(userData.TimeCreditTicksDaily);
-				CheckAndSendThresholdNotification(session, userId, "daily", limit, TimeSpan.FromTicks(userData.WatchedTimeTicksDaily), orAdd, _dailyThresholdsNotified);
-			}
+			TimeSpan limit = TimeSpan.FromMinutes(dailyLimitMinutes.Value) + TimeSpan.FromTicks(userData.TimeCreditTicksDaily);
+			CheckAndSendThresholdNotification(session, userId, "daily", limit, TimeSpan.FromTicks(userData.WatchedTimeTicksDaily), orAdd, _dailyThresholdsNotified);
 		}
-		if (userConfig.EnableWeeklyLimit && userConfig.WeeklyLimitHours > 0)
+		if (userConfig.EnableWeeklyLimit)
 		{
 			TimeSpan limit2 = TimeSpan.FromHours(userConfig.WeeklyLimitHours) + TimeSpan.FromTicks(userData.TimeCreditTicksWeekly);
 			CheckAndSendThresholdNotification(session, userId, "weekly", limit2, TimeSpan.FromTicks(userData.WatchedTimeTicksWeekly), orAdd, _weeklyThresholdsNotified);
 		}
-		if (userConfig.EnableMonthlyLimit && userConfig.MonthlyLimitHours > 0)
+		if (userConfig.EnableMonthlyLimit)
 		{
 			TimeSpan limit3 = TimeSpan.FromHours(userConfig.MonthlyLimitHours) + TimeSpan.FromTicks(userData.TimeCreditTicksMonthly);
 			CheckAndSendThresholdNotification(session, userId, "monthly", limit3, TimeSpan.FromTicks(userData.WatchedTimeTicksMonthly), orAdd, _monthlyThresholdsNotified);
 		}
-		if (userConfig.EnableYearlyLimit && userConfig.YearlyLimitHours > 0)
+		if (userConfig.EnableYearlyLimit)
 		{
 			TimeSpan limit4 = TimeSpan.FromHours(userConfig.YearlyLimitHours) + TimeSpan.FromTicks(userData.TimeCreditTicksYearly);
 			CheckAndSendThresholdNotification(session, userId, "yearly", limit4, TimeSpan.FromTicks(userData.WatchedTimeTicksYearly), orAdd, _yearlyThresholdsNotified);
@@ -795,7 +774,7 @@ public static class WatchTimeManager
 				CreditSecondsMonthly = TimeSpan.FromTicks(orAdd.TimeCreditTicksMonthly).TotalSeconds,
 				CreditSecondsYearly = TimeSpan.FromTicks(orAdd.TimeCreditTicksYearly).TotalSeconds,
 				TimeOutUntil = ((orAdd.TimeOutUntil > DateTime.UtcNow) ? orAdd.TimeOutUntil : DateTime.MinValue),
-				EffectiveDailyLimitMinutes = ((limitedUser.EnableDailyLimit || limitedUser.EnablePerDayLimits) ? GetEffectiveDailyLimitMinutes(limitedUser) : 0),
+				EffectiveDailyLimitMinutes = GetEffectiveDailyLimitMinutes(limitedUser),
 				IsEnabled = limitedUser.IsEnabled,
 				BlockReason = GetPlaybackBlockReason(limitedUser.UserId).ToString(),
 				SecondsRemaining = remaining.Seconds,

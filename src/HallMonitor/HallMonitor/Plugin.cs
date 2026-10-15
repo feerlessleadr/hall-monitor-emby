@@ -107,7 +107,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbIm
 		string? startupLimitProblem = ConfigurationValidator.FindInvalidLimit(startupConfig);
 		if (startupLimitProblem != null)
 		{
-			LogWarning("Saved configuration has an enabled limit of 0, which means no limit: " + startupLimitProblem + " Fix it on the plugin page.");
+			LogWarning("Saved configuration has an invalid limit (it is clamped to 0, which means no time at all): " + startupLimitProblem + " Fix it on the plugin page.");
 		}
 		string? startupKeyProblem = ConfigurationValidator.FindInvalidApiKey(startupConfig);
 		if (startupKeyProblem != null)

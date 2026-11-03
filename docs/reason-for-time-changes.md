@@ -52,5 +52,10 @@ Reductions (app "-30 min", Undo, HA "Trade Tablet Time for Play Time") should be
 - Source values: `app`, `plugin`, `homeassistant`; anything else `other`; missing `unknown`. Reason capped at 80 characters, control characters removed.
 - The change list is in memory only (decision: the app only needs recent changes to explain a credit rise; a restart losing it just means the app uses its old wording).
 
+- 2026-11-03: plugin 2.5.0.0 committed locally (not pushed, not tagged). App change written in `C:\dev\embidextrous` (not committed): `TimeChange` model, engine builds the text, manual add/Undo send `Source: "app"`. App unit tests pass (6 new). Wording as decided: manual = "added manually by a parent"; Home Assistant add = "15 min added because the Feed Chloe chore was marked completed."; take-away = "30 min taken away: Traded for play time." or "...manually by a parent."
+- Decision: reductions share the existing rule (id `HallMonitor.ExtraTimeAdded`, now titled "Time was added or taken away") instead of a new rule, so the owner's existing switch carries over. Take-aways are announced only from the plugin's change list, because the credit also drops on resets.
+- Still to do: HA edits (needs the chore label table approved), emulator/live check, app release (needs "publish it"), plugin tag (needs approval).
+
 ## Not yet verified
 Regression suite and a live test of the plugin on the test Emby server; the push (websocket) carrying the new field.
+

@@ -71,3 +71,15 @@ Regression suite and a live test of the plugin on the test Emby server; the push
 - App: a real pushed status captured from that run is a test resource; the app's parser and engine produce the expected text.
 - Not done: emulator run (notification seen on screen); HA change not pushed or tried in HA.
 - Heads-up for the owner: HA sends `user_id: "Harper"` (a name), but the plugin matches only the user's Emby id (`ResolveListedUser`). It must already work for you (the Limited Users entry's id must match), but if chore adds ever do nothing, check that first.
+
+## Emulator run and HA push (2026-11-03, owner asked for both; test server to be closed afterwards)
+- Emulator check passed (private AVD, debug app build, plugin 2.5.0.0 on the test server, throw-away admin and child user, Hall Monitor alerts switched on with the "Time was added or taken away" rule). Changes sent through the public API as Home Assistant and the app would send them; the posted notifications read:
+  - "emu-child was given more time": "15 min added because the Feed Chloe chore was marked completed. emu-child now has 1 h 50 min left today."
+  - "emu-child was given more time": "30 min added manually by a parent. emu-child now has 2 h 20 min left today."
+  - "emu-child had time taken away": "10 min taken away: Traded for play time. emu-child now has 1 h 35 min left today."
+  - "emu-child had time taken away": "5 min taken away manually by a parent. emu-child now has 2 h 15 min left today."
+  - The lock-screen version stays generic ("Extra time was added. Unlock to see who.").
+- Not verified: a real phone, the lock screen on a device, Home Assistant itself.
+- Cleanup done: throw-away users deleted (kevin and test1 untouched), plugin settings files restored byte for byte, AVD and temp files removed, test server and its tray closed. A throw-away password was echoed once in tool output by a typo; the user was deleted afterwards.
+- HA: the two commits were already on origin/main (rebased onto the automatic commits by another session, now 84eb48b and 23fd987). Checked on origin: Source on both rest_commands, 41 chore reasons, trade reason, unused file gone. Nothing was pushed by this session. The owner pulls via git-ha-ppens and restarts HA.
+- Still open: plugin push and tag v2.5.0.0 (needs reconcile with origin 2.4.1.0 first, see CLAUDE.md), app release ("publish it").

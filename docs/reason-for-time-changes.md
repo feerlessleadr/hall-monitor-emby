@@ -48,7 +48,7 @@ Reductions (app "-30 min", Undo, HA "Trade Tablet Time for Play Time") should be
 - (Resolved: trade wording, secrets.yaml, stale automations file, version; see decisions 9-12.)
 
 ## Progress
-- 2026-11-03: plugin 2.5.0.0 built locally in `C:\dev\hall-monitor-emby` (not committed, not tagged). 33 unit tests pass, Release build clean. Details in `PROGRESS.md` section 20 and `docs/releases/v2.5.0.0.md`.
+- 2026-11-03: plugin 2.5.0.0 built locally in `C:\dev\hall-monitor-emby` (not committed, not tagged). 33 unit tests pass, Release build clean. Details in `PROGRESS.md` section 21 and `docs/releases/v2.5.0.0.md`.
 - Source values: `app`, `plugin`, `homeassistant`; anything else `other`; missing `unknown`. Reason capped at 80 characters, control characters removed.
 - The change list is in memory only (decision: the app only needs recent changes to explain a credit rise; a restart losing it just means the app uses its old wording).
 

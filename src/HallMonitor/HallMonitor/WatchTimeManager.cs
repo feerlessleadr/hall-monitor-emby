@@ -74,11 +74,46 @@ public static class WatchTimeManager
 			LoadWatchTimeData();
 			_ledgerPath = Path.Combine(appPaths.PluginConfigurationsPath, "HallMonitor.WatchLedger.json");
 			LoadLedger();
+			ApplyResetsAtStart();
 			_lastTimerFire = DateTime.UtcNow;
 			TimeSpan timeSpan = TimeSpan.FromSeconds(TimerIntervalSeconds);
 			_updateTimer = new Timer(OnTimerElapsed, null, timeSpan, timeSpan);
 			_isRunning = true;
 			_logger.Info("[WatchTimeManager] Started.", Array.Empty<object>());
+		}
+	}
+
+	/// <summary>
+	/// Applies every reset that came due while the server was off, before anything can read the totals. The saved file holds the last
+	/// session's numbers, and without this the status showed yesterday's usage until the first timer tick, 15 seconds later.
+	/// </summary>
+	private static void ApplyResetsAtStart()
+	{
+		try
+		{
+			PluginConfiguration config = ((BasePlugin<PluginConfiguration>)(object)Plugin.Instance)?.Configuration;
+			if (config == null)
+			{
+				return;
+			}
+			DateTime utcNow = DateTime.UtcNow;
+			bool changed = false;
+			foreach (string key in _userWatchData.Keys)
+			{
+				LimitedUser userConfig = GetUserConfig(key, config);
+				if (userConfig != null)
+				{
+					changed |= ProcessResetsForUser(key, userConfig, utcNow);
+				}
+			}
+			if (changed)
+			{
+				_isDirty = true;
+			}
+		}
+		catch (Exception ex)
+		{
+			_logger?.ErrorException("[WatchTimeManager] Error applying resets at start.", ex, Array.Empty<object>());
 		}
 	}
 

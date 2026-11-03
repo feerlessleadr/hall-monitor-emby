@@ -27,7 +27,7 @@ C#, `net6.0`, nullable annotations, overflow checks on, `packages.lock.json` (re
 - Planned order for 2.5.0.0: plugin release, then Home Assistant push, then Embidextrous app release. Each step is backward compatible.
 
 ## Contract (this repo owns it)
-Routes under `/emby/HallMonitor/`: `Public/Status` (GET) and `Public/{ExtendTime,ReduceTime,ResetUserTime,TimeOutUser,ClearTimeOut,StopStream}` (POST JSON). Two headers: `X-HallMonitor-Api-Key` (plugin key) and `X-Emby-Token`. Websocket: client sends `HallMonitorStatusStart` with `0,30000,<plugin key>`, server pushes `HallMonitorStatus`. Changes must be additive; bump `ApiLevel` for new status fields (7 = `RecentTimeChanges`, `Source`, `Reason`). Clients: Embidextrous app, Home Assistant. Details: `C:\dev\_docs\WORKSPACE.md`, `PROGRESS.md` sections 8, 12, 14, 20.
+Routes under `/emby/HallMonitor/`: `Public/Status` (GET) and `Public/{ExtendTime,ReduceTime,ResetUserTime,TimeOutUser,ClearTimeOut,StopStream}` (POST JSON). Two headers: `X-HallMonitor-Api-Key` (plugin key) and `X-Emby-Token`. Websocket: client sends `HallMonitorStatusStart` with `0,30000,<plugin key>`, server pushes `HallMonitorStatus`. Changes must be additive; bump `ApiLevel` for new status fields (7 = `RecentTimeChanges`, `Source`, `Reason`). Clients: Embidextrous app, Home Assistant. Details: `C:\dev\_docs\WORKSPACE.md`, `PROGRESS.md` sections 8, 12, 14, 21.
 
 ## Conventions
 - Admin routes use `[Authenticated(Roles="Admin")]`. Only listed users are affected. User names are kept exactly.

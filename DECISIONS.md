@@ -50,3 +50,24 @@ Append-only, newest at the bottom. Never rewrite an entry; if a decision is reve
 - **Decision:** `C:\dev\hall-monitor-emby` is canonical (owner's decision recorded in `docs/reason-for-time-changes.md`). `C:\dev\watching-eye` is deprecated and must not be edited.
 - **Rationale:** Avoid divergence. The clones already diverged: origin has 2.4.1.0 that this clone lacks.
 - **Impact:** Integrate origin's 2.4.1.0 here before any push or release. Other repos' docs that cite `C:\dev\watching-eye` as the Hall Monitor reference are stale.
+
+### 2026-11-03, The change list lives in memory only
+- **Context:** The app only needs to explain a credit rise or drop that just happened. A permanent record would be a second ledger to keep correct.
+- **Options considered:** Persist changes to the plugin's data file; keep a bounded in-memory list.
+- **Decision:** `TimeChangeLog` keeps the latest 20 changes per user in memory. Ids are seeded from the clock so ids from before a restart are always smaller than ids after it. `Source` is normalised to app, plugin, homeassistant, other (unrecognised) or unknown (missing). `Reason` is one line, control characters removed, at most 80 characters. The change is recorded before the save that triggers the websocket push, so the reason travels in the same push as the new time.
+- **Rationale:** After an Emby restart the list is empty and the app falls back to its old wording, which is harmless. No new file format, no migration.
+- **Impact:** The app must treat `RecentTimeChanges` as optional (null on plugins before 2.5.0.0). The plugin dashboard does not show reasons. Do not add a consumer that expects the list to survive a restart.
+
+### 2026-11-03, Merge origin's 2.4.1.0 into 2.5.0.0 instead of rebasing
+- **Context:** Local `main` held four unpushed 2.5.0.0 commits and origin held the 2.4.1.0 fix (due resets applied at start). Releasing from local alone would have shipped 2.5.0.0 without that fix and the app would again announce yesterday's usage after a restart.
+- **Options considered:** Rebase local onto origin; merge origin into local.
+- **Decision:** Merge. Two conflicts: `AssemblyInfo.cs` (kept 2.5.0.0) and `PROGRESS.md` (both sections kept; the reasons section renumbered from 20 to 21). Pushed and tagged `v2.5.0.0` on a7c7c9a after CodeQL (csharp, actions, javascript-typescript) was green.
+- **Rationale:** A merge keeps already-pushed commit ids intact and was the smaller risk. The owner said "publish everything", which covered the integration.
+- **Impact:** Released `HallMonitor.dll` is 232,960 bytes, SHA-256 `6ef6470b53a0862b1759efaf30b1e165cfe0abab2724abce1f8305100c08e247`. The merged build was built and unit tested (33 tests) but NOT re-run against the live test server; the live results (regression 74 of 74, reason script 12 of 12) were from the pre-merge tree. `C:\dev\watching-eye` stays deprecated.
+
+### 2026-11-03, Surprising discovery: the plugin matches an Emby user id, Home Assistant sends a name
+- **Context:** The first live run of the reason script failed ("user is not in the Limited Users list") because the script passed the user's name. `ResolveListedUser` matches only the Emby user id stored in `LimitedUsers`. Home Assistant's chore automations send `user_id: "Harper"` and similar names.
+- **Options considered:** Make the plugin also match by name; leave it and confirm the live setup works.
+- **Decision:** No plugin change in this release. The owner says chore awards already work, so the Limited Users entries must carry whatever HA sends. Not re-verified.
+- **Rationale:** Changing user resolution is a behaviour change outside the reasons feature.
+- **Impact:** If a chore award ever does nothing, check the Limited Users entry's id against what HA sends first. Recorded as an open question in `STATUS.md`.

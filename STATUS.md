@@ -35,3 +35,11 @@ Last updated: 2026-11-03 (verified with `git fetch`). Living snapshot; overwrite
 - 2.5.0.0 on the production server, and on Linux or Docker servers.
 - Reason notification text on a real phone and its lock screen.
 - The merged 2.5.0.0 build against the live test server.
+
+## In progress
+- Nothing. Last session ended with 2.5.0.0, app 0.11.0 and the HA change all published.
+
+## Manual steps for the owner
+1. Update Hall Monitor through the GitHub Repo Plugin Installer (daily task or Update button), then restart Emby.
+2. Pull the HA config via git-ha-ppens and restart HA.
+3. Update the app with Obtainium, then mark one chore done and check the phone notification names it.

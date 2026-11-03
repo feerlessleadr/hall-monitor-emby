@@ -59,3 +59,8 @@ Reductions (app "-30 min", Undo, HA "Trade Tablet Time for Play Time") should be
 ## Not yet verified
 Regression suite and a live test of the plugin on the test Emby server; the push (websocket) carrying the new field.
 
+
+## Push versus polling (checked 2026-11-03, owner asked)
+- Confirmed by reading both codebases: the app does not poll while connected. The plugin's `StatusPushListener` pushes the whole status over Emby's websocket on every change (`SaveWatchTimeDataImmediate` calls `NotifyChanged`, which every extend/reduce/time-out/reset goes through), after playback events (coalesced, 800 ms), and as a 30 s heartbeat. The app's `LiveConnection` receives it and `AlertService` feeds it to `HallMonitorEngine`.
+- The only REST fetches are the first load, pull-to-refresh, a refresh after the app's own actions, and a 20 s fallback that runs only while the live connection is NOT live (`HallMonitorRepository.FALLBACK_POLL_MS`). The backup poll job explicitly skips Hall Monitor.
+- The new change list rides on that same push (`GetLimitedUsersStatus()` fills `RecentTimeChanges`; the change is recorded before the save that triggers the push), so the reason arrives with the same immediacy. No polling was added. A new test checks that a pushed status parses with the list.

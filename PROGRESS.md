@@ -231,7 +231,7 @@ The user wants to make this repository public (2026-10-09). Audit before publish
 - **Checked:** the plugin builds and the 26 unit tests pass. **Not checked:** a live restart on the test server (needs a saved total from the day before).
 - **Released:** tag `v2.4.1.0` on `3072528` (CodeQL green); `HallMonitor.dll` 229,376 bytes, SHA-256 `51503dd8b525aabad97bd68756542c272c3b889eece389cda558a3814138dc61`.
 
-## 21. Say why time changed (plugin 2.5.0.0, built, not released)
+## 21. Say why time changed (plugin 2.5.0.0, RELEASED 2026-11-03, tag v2.5.0.0)
 - **Why:** the owner wants the Embidextrous notification for extra time to say why: a chore marked done in Home Assistant, or time added by a parent. The app only saw the credit total rise, so it could not know. Decision log: `docs/reason-for-time-changes.md`.
 - **Changed:** new `TimeChangeLog.cs` (no Emby types) keeps the latest 20 changes per user in memory. `ExtendTimeForUser` and `ReduceTimeForUser` take optional `source` and `reason` and record the change after it succeeds. `PublicExtendTimeRequest` and `PublicReduceTimeRequest` gain `Source` and `Reason`; the admin requests gain `Reason` (source is fixed to `plugin`). `LimitedUserStatus.RecentTimeChanges` carries the list; `ApiLevel` 7.
 - **Checked:** 33 unit tests pass; Release build has no warnings. **Not checked:** regression suite, live server, the websocket push carrying the new field (it serialises the same status object, to be confirmed live).

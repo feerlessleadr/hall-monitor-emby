@@ -83,3 +83,9 @@ Regression suite and a live test of the plugin on the test Emby server; the push
 - Cleanup done: throw-away users deleted (kevin and test1 untouched), plugin settings files restored byte for byte, AVD and temp files removed, test server and its tray closed. A throw-away password was echoed once in tool output by a typo; the user was deleted afterwards.
 - HA: the two commits were already on origin/main (rebased onto the automatic commits by another session, now 84eb48b and 23fd987). Checked on origin: Source on both rest_commands, 41 chore reasons, trade reason, unused file gone. Nothing was pushed by this session. The owner pulls via git-ha-ppens and restarts HA.
 - Still open: plugin push and tag v2.5.0.0 (needs reconcile with origin 2.4.1.0 first, see CLAUDE.md), app release ("publish it").
+
+## Published (2026-11-03, owner said "publish it" / "publish everything")
+- Plugin: origin 2.4.1.0 merged into the 2.5.0.0 work (conflicts: version number and PROGRESS numbering only), 33 unit tests pass, CodeQL green on a7c7c9a, tag `v2.5.0.0`, Release workflow succeeded. `HallMonitor.dll` 232,960 bytes, SHA-256 `6ef6470b53a0862b1759efaf30b1e165cfe0abab2724abce1f8305100c08e247`. The merged build was NOT re-run against the live test server.
+- App: 0.11.0 on commit 6a30de9 (`test` and both CodeQL jobs green), tag `v0.11.0`, Release workflow succeeded. `Embidextrous-0.11.0.apk` 2,576,294 bytes, SHA-256 `20295b011e86d315f7e07f6b8b41b87449dc3c759d7d639aefe44678258a0b0e`.
+- HA: already on origin (see above).
+- Owner steps left: update the plugin through the installer and restart Emby; pull the HA config and restart HA; update the app (Obtainium).

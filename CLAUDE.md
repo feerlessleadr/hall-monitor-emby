@@ -2,12 +2,9 @@
 
 **Persistent docs:** read `C:\dev\_docs\WORKSPACE.md` (environment, how projects connect), then `STATUS.md` here. Search `DECISIONS.md` only when a past decision matters. The rules for keeping docs current live in `C:\dev\CLAUDE.md`. This repo is public: never write LAN addresses, internal host names, Windows user names, work email, share names or secret values into it.
 
-## READ THIS FIRST: the local clone and origin have diverged
-- Checked with `git fetch` on 2026-11-03: local `main` is **ahead 4, behind 3** of `origin/main`.
-- Origin has release **2.4.1.0** ("due resets applied at start", commits d133ba9, 3072528, e145547, tag `v2.4.1.0`). Without it, after a restart the app showed yesterday's usage (for example 93%). Local does not have it.
-- Local has four unpushed 2.5.0.0 commits (19ced7d, 2551147, fedc9e6, 5274d1b) and an `AssemblyVersion` of 2.5.0.0.
-- Before any push or tag: fetch, then merge or rebase origin into local so the 2.4.1.0 fix is kept. Never release 2.5.0.0 from a tree that lacks it. Ask the owner which way to integrate; do not push on your own.
-- The other clone, `C:\dev\watching-eye`, is deprecated and is the one that holds 2.4.1.0 locally. This repo is the live source.
+## State (2026-11-03)
+- Local and origin are in sync. Release **2.5.0.0** (say why time changed, ApiLevel 7) is published: tag `v2.5.0.0` on a7c7c9a, merged with 2.4.1.0. `HallMonitor.dll` 232,960 bytes, SHA-256 `6ef6470b53a0862b1759efaf30b1e165cfe0abab2724abce1f8305100c08e247`.
+- The other clone, `C:devwatching-eye`, is deprecated. This repo is the live source.
 
 ## What it is
 Emby Server plugin that limits watch time for chosen users: daily, weekly, monthly and yearly caps, per-day limits, allowed time windows, extra time (extend and reduce), time-outs, stop-stream, an event log, a key-gated public API, and a live websocket status push for the Embidextrous app. A permanent watch ledger (since 2.1) reports time actually watched. It began as a decompile of the third-party WatchingEye 1.6.8.0 plugin, then was hand-rewritten; see README for the provenance notice. There is deliberately no LICENSE file.

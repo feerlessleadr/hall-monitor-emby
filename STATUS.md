@@ -1,41 +1,37 @@
 # Hall Monitor: status
 
-Last updated: 2026-11-03 (docs setup session). This is a living snapshot; overwrite it, do not append.
+Last updated: 2026-11-03 (verified with `git fetch`). Living snapshot; overwrite it, do not append.
 
-## Git state (verified 2026-11-03 with `git fetch`)
-- Branch `main`: **ahead 4, behind 3** of `origin/main`. Working tree clean.
-- Local only (4): 19ced7d "Say why time changed ... (2.5.0.0, not released)", 2551147, fedc9e6, 5274d1b (decision-log updates and `tools\Test-ReasonLive.ps1`).
-- Origin only (3): d133ba9 "Apply due resets when the plugin starts", 3072528 "Release 2.4.1.0", e145547 "Record the 2.4.1.0 release". Tag `v2.4.1.0` is on origin but not local.
-- `AssemblyVersion` locally is 2.5.0.0.
+## Git state
+- Branch `main` is level with `origin/main`. Nothing to push or rebase. Working tree clean.
+- Origin's 2.4.1.0 history was merged into the 2.5.0.0 work (merge commit a7c7c9a, not a rebase), so the "due resets applied at start" fix is in 2.5.0.0.
+- Tag `v2.5.0.0` is on origin. `AssemblyVersion` is 2.5.0.0.
 
 ## Released versions
-2.1.0.0 (watch ledger), 2.2.0.0 (`Limits[]`, ApiLevel 4), 2.3.0.0 (reduce can go negative, ApiLevel 5), 2.4.0.0 (limit of 0 = no time left, ApiLevel 6), **2.4.1.0** (due resets applied at start; on origin only).
+2.1.0.0 (watch ledger), 2.2.0.0 (`Limits[]`, ApiLevel 4), 2.3.0.0 (reduce can go negative, ApiLevel 5), 2.4.0.0 (limit of 0 = no time left, ApiLevel 6), 2.4.1.0 (due resets applied at start), **2.5.0.0** (published 2026-11-03).
 
-## In progress: 2.5.0.0 "Say why time changed" (ApiLevel 7), built, NOT released
+## 2.5.0.0 "Say why time changed" (ApiLevel 7), released
 - Optional `Source` and `Reason` on `Public/ExtendTime` and `Public/ReduceTime`. Admin routes take `Reason`; source is fixed to "plugin".
-- New in-memory `TimeChangeLog` keeps the latest 20 changes per user. Status gains `RecentTimeChanges`.
+- In-memory `TimeChangeLog` keeps the latest 20 changes per user. Status gains `RecentTimeChanges` (empty after a restart).
 - Source values: app, plugin, homeassistant, other, unknown. Reason is capped at 80 characters, control characters stripped.
-- Verified: 33 unit tests; regression suite 74/74 and the 12 live reason checks on the test server (2.5.0.0 was left installed there).
-- Not done: the plugin dashboard does not show reasons; the app's notification wording was not checked on an emulator.
+- Verified before release: 33 unit tests; regression 74/74 and 12 live reason checks on the test server; the app showed all four reason texts on an emulator against this plugin. Those live runs were on the pre-merge tree; after the merge only the build and the 33 unit tests were run. Detail: `PROGRESS.md` section 21 and `docs/reason-for-time-changes.md`.
+- Release asset: `HallMonitor.dll` 232,960 bytes, SHA-256 `6ef6470b53a0862b1759efaf30b1e165cfe0abab2724abce1f8305100c08e247`.
+- Consumers: Home Assistant already sends Source/Reason (its commits are on origin). Embidextrous 0.11.0 shows the reasons.
+
+## Not done / known issues
+- The plugin's own dashboard does not show reasons.
+- `RecentTimeChanges` is lost on restart by design.
+- Open: Home Assistant sends a user NAME (for example "Harper") as `UserId`. Confirm the plugin resolves names as well as Emby user ids.
+- Not recorded: whether 2.5.0.0 is installed on the production server (the installer plugin pulls it on its schedule or on Update).
+- Backlog (from `PROGRESS.md`): hash the stored API key, admin audit trail, restrict the Public API by client address, put the regression suite in CI.
 
 ## Next actions
-1. Ask the owner how to integrate: merge or rebase origin's 2.4.1.0 into local. The fix must survive into 2.5.0.0.
-2. After approval and "publish it": write release notes, bump nothing else, tag `v2.5.0.0`.
-3. Then the Home Assistant push (`C:\dev\ha`, two local commits waiting) and the Embidextrous release.
-
-## Open questions
-- Home Assistant sends a user name as `UserId`; the plugin matches an Emby user id. Do chore additions land for Harper, Penny and Wyatt? Check on the live server once 2.5.0.0 is out.
-- Is the production Emby server on Windows? (Owner says it runs as the tray app under a separate Windows account; see WORKSPACE.md.)
-- Should the `watching-eye` clone be deleted after the integration? Not before.
-
-## Known issues and gotchas
-- `ReduceTime` on a 0 limit creates hidden debt.
-- A blank limit field saves as 0 (now blocked by validation).
-- Weekly reset must be on for "weekly" to mean a week.
-- Ledger history starts at install; a backfill from Playback Reporting was offered but is not built.
-- Regression push-count test has a timing flake. The regression suite is not in CI.
-- Backlog: hash the stored API key, admin audit trail, restrict the public API by client address.
+1. Owner: update the plugin through the installer and restart Emby; pull the HA config and restart HA; update the app (Obtainium).
+2. Confirm 2.5.0.0 is installed on production and that a Home Assistant chore award shows its reason in the phone notification.
+3. Optionally re-run `tools\Run-RegressionTests.ps1 -SkipLockout` and `tools\Test-ReasonLive.ps1` against the test server on the merged build (the test server has 2.5.0.0 installed and is closed).
+4. Decide whether to show reasons on the plugin dashboard. Nothing is in progress right now.
 
 ## Not verified
 - 2.5.0.0 on the production server, and on Linux or Docker servers.
-- App notification text for reasons on a real phone.
+- Reason notification text on a real phone and its lock screen.
+- The merged 2.5.0.0 build against the live test server.

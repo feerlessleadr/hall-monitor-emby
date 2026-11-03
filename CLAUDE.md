@@ -4,7 +4,7 @@
 
 ## State (2026-11-03)
 - Local and origin are in sync. Release **2.5.0.0** (say why time changed, ApiLevel 7) is published: tag `v2.5.0.0` on a7c7c9a, merged with 2.4.1.0. `HallMonitor.dll` 232,960 bytes, SHA-256 `6ef6470b53a0862b1759efaf30b1e165cfe0abab2724abce1f8305100c08e247`.
-- The other clone, `C:devwatching-eye`, is deprecated. This repo is the live source.
+- The other clone, `C:\dev\watching-eye`, is deprecated. This repo is the live source.
 
 ## What it is
 Emby Server plugin that limits watch time for chosen users: daily, weekly, monthly and yearly caps, per-day limits, allowed time windows, extra time (extend and reduce), time-outs, stop-stream, an event log, a key-gated public API, and a live websocket status push for the Embidextrous app. A permanent watch ledger (since 2.1) reports time actually watched. It began as a decompile of the third-party WatchingEye 1.6.8.0 plugin, then was hand-rewritten; see README for the provenance notice. There is deliberately no LICENSE file.

@@ -71,8 +71,11 @@ public class LimitedUserStatus
 	/// <summary>Every enabled limit of this user (daily, weekly, monthly, yearly) with its allowance, what was counted, what is left and the per cent used. LimitingPeriod and SecondsRemaining describe only the closest one of these. Empty when no limit applies. From plugin 2.2 (ApiLevel 4).</summary>
 	public List<LimitStatus> Limits { get; set; } = new List<LimitStatus>();
 
-	/// <summary>2 from plugin 1.9: the status says what is playing, so a missing NowPlaying means nothing is playing. 3 from plugin 2.1: also the watched-time totals (Watched...Seconds), and Reset only gives a fresh day. 4 from plugin 2.2: the Limits list. 5 from plugin 2.3: ReduceTime can take away more than the extra time that was added (the allowance can go below the limit, down to nothing).</summary>
-	public int ApiLevel { get; set; } = 6;
+	/// <summary>2 from plugin 1.9: the status says what is playing, so a missing NowPlaying means nothing is playing. 3 from plugin 2.1: also the watched-time totals (Watched...Seconds), and Reset only gives a fresh day. 4 from plugin 2.2: the Limits list. 5 from plugin 2.3: ReduceTime can take away more than the extra time that was added (the allowance can go below the limit, down to nothing). 6 from plugin 2.4: a limit of 0 means no time left. 7 from plugin 2.5: RecentTimeChanges says why time was added or taken away.</summary>
+	public int ApiLevel { get; set; } = 7;
+
+	/// <summary>The latest extra-time changes for this user, oldest first, with why each happened (Source and Reason as the caller gave them). Held in memory only, so it is empty after a restart. From plugin 2.5 (ApiLevel 7).</summary>
+	public List<TimeChange> RecentTimeChanges { get; set; } = new List<TimeChange>();
 }
 
 /// <summary>One enabled limit of a user, as reported in <see cref="LimitedUserStatus.Limits"/>.</summary>

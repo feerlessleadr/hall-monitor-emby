@@ -10,6 +10,9 @@
   <ItemGroup>
     <!-- The ledger is plain C# without Emby types: compile it straight into the tests instead of referencing the plugin. -->
     <Compile Include="..\..\src\HallMonitor\HallMonitor\WatchLedger.cs" Link="WatchLedger.cs" />
+    <!-- The recent time-change list (and the text cleaner it uses) are free of Emby types too. -->
+    <Compile Include="..\..\src\HallMonitor\HallMonitor\TimeChangeLog.cs" Link="TimeChangeLog.cs" />
+    <Compile Include="..\..\src\HallMonitor\HallMonitor\LogSanitizer.cs" Link="LogSanitizer.cs" />
     <!-- The limit arithmetic and the plain types it reads are free of Emby types too. -->
     <Compile Include="..\..\src\HallMonitor\HallMonitor\LimitCalculator.cs" Link="LimitCalculator.cs" />
     <Compile Include="..\..\src\HallMonitor\HallMonitor\LimitedUser.cs" Link="LimitedUser.cs" />

@@ -781,7 +781,8 @@ public static class WatchTimeManager
 				LimitingPeriod = remaining.Period,
 				LimitingAllowedSeconds = remaining.AllowedSeconds,
 				Limits = LimitCalculator.EnabledLimits(limitedUser, orAdd, DateTime.Now.DayOfWeek).Select((LimitSnapshot l) => new LimitStatus { Period = l.Period, AllowedSeconds = l.AllowedSeconds, WatchedSeconds = l.WatchedSeconds, RemainingSeconds = l.RemainingSeconds, PercentUsed = l.PercentUsed }).ToList(),
-				NowPlaying = BuildNowPlaying(limitedUser.UserId)
+				NowPlaying = BuildNowPlaying(limitedUser.UserId),
+				RecentTimeChanges = _timeChanges.Recent(limitedUser.UserId)
 			});
 		}
 		return list;
@@ -874,7 +875,9 @@ public static class WatchTimeManager
 		});
 	}
 
-	public static string? ExtendTimeForUser(string userId, int minutesToExtend)
+	private static readonly TimeChangeLog _timeChanges = new TimeChangeLog();
+
+	public static string? ExtendTimeForUser(string userId, int minutesToExtend, string? source = null, string? reason = null)
 	{
 		string? text = ValidateMinutes(minutesToExtend);
 		if (text != null)
@@ -893,12 +896,13 @@ public static class WatchTimeManager
 		userWatchData.TimeCreditTicksMonthly = AddCredit(userWatchData.TimeCreditTicksMonthly, ticks);
 		userWatchData.TimeCreditTicksYearly = AddCredit(userWatchData.TimeCreditTicksYearly, ticks);
 		_limitServerNotified.TryRemove(canonicalId, out var _);
+		_timeChanges.Record(canonicalId, minutesToExtend, source, reason);
 		SaveWatchTimeDataImmediate();
 		return null;
 	}
 
 	/// <summary>Takes back extra time credit (the app's Undo for Extend). The credit never goes below zero.</summary>
-	public static string? ReduceTimeForUser(string userId, int minutesToRemove)
+	public static string? ReduceTimeForUser(string userId, int minutesToRemove, string? source = null, string? reason = null)
 	{
 		string? text = ValidateMinutes(minutesToRemove);
 		if (text != null)
@@ -916,6 +920,7 @@ public static class WatchTimeManager
 		userWatchData.TimeCreditTicksWeekly = AddCredit(userWatchData.TimeCreditTicksWeekly, -ticks);
 		userWatchData.TimeCreditTicksMonthly = AddCredit(userWatchData.TimeCreditTicksMonthly, -ticks);
 		userWatchData.TimeCreditTicksYearly = AddCredit(userWatchData.TimeCreditTicksYearly, -ticks);
+		_timeChanges.Record(canonicalId, -minutesToRemove, source, reason);
 		SaveWatchTimeDataImmediate();
 		return null;
 	}

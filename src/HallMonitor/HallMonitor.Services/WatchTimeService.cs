@@ -18,12 +18,12 @@ public class WatchTimeService : IService
 
 	public void Post(ExtendTimeRequest request)
 	{
-		ThrowIfError(WatchTimeManager.ExtendTimeForUser(request.UserId, request.Minutes));
+		ThrowIfError(WatchTimeManager.ExtendTimeForUser(request.UserId, request.Minutes, "plugin", request.Reason));
 	}
 
 	public void Post(ReduceTimeRequest request)
 	{
-		ThrowIfError(WatchTimeManager.ReduceTimeForUser(request.UserId, request.Minutes));
+		ThrowIfError(WatchTimeManager.ReduceTimeForUser(request.UserId, request.Minutes, "plugin", request.Reason));
 	}
 
 	public void Post(StopStreamRequest request)

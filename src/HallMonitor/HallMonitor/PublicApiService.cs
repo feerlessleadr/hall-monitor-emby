@@ -41,13 +41,13 @@ public class PublicApiService : IService, IRequiresRequest
 	public void Post(PublicExtendTimeRequest request)
 	{
 		EnsureApiKeyValid();
-		ThrowIfError(WatchTimeManager.ExtendTimeForUser(request.UserId, request.Minutes));
+		ThrowIfError(WatchTimeManager.ExtendTimeForUser(request.UserId, request.Minutes, request.Source, request.Reason));
 	}
 
 	public void Post(PublicReduceTimeRequest request)
 	{
 		EnsureApiKeyValid();
-		ThrowIfError(WatchTimeManager.ReduceTimeForUser(request.UserId, request.Minutes));
+		ThrowIfError(WatchTimeManager.ReduceTimeForUser(request.UserId, request.Minutes, request.Source, request.Reason));
 	}
 
 	public void Post(PublicStopStreamRequest request)

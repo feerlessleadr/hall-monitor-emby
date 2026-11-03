@@ -10,4 +10,7 @@ public class ExtendTimeRequest : IReturnVoid, IReturn
 	public string UserId { get; set; } = string.Empty;
 
 	public int Minutes { get; set; }
+
+	/// <summary>Optional short reason, shown in the phone app's notification.</summary>
+	public string Reason { get; set; } = string.Empty;
 }

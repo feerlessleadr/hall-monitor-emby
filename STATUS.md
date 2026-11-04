@@ -21,7 +21,7 @@ Last updated: 2026-11-03 (verified with `git fetch`). Living snapshot; overwrite
 ## Not done / known issues
 - The plugin's own dashboard does not show reasons.
 - `RecentTimeChanges` is lost on restart by design.
-- Open: Home Assistant sends a user NAME (for example "Harper") as `UserId`. Confirm the plugin resolves names as well as Emby user ids.
+- Resolved 2026-11-04: names are NOT accepted. Home Assistant had sent a user NAME as `UserId` and every chore award was rejected ("not in the Limited Users list"). The HA repo now sends Emby user ids (fix on its `main`); the plugin is unchanged. Not yet confirmed live on the HA host.
 - Not recorded: whether 2.5.0.0 is installed on the production server (the installer plugin pulls it on its schedule or on Update).
 - Backlog (from `PROGRESS.md`): hash the stored API key, admin audit trail, restrict the Public API by client address, put the regression suite in CI.
 

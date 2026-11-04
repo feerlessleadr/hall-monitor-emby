@@ -70,7 +70,7 @@ Regression suite and a live test of the plugin on the test Emby server; the push
 - Regression suite: 74 of 74. New script `tools/Test-ReasonLive.ps1` (12 checks): the push arrives right after ExtendTime and carries the reason; all combinations of Source/Reason behave as specified; credit unchanged; a bad request is still refused.
 - App: a real pushed status captured from that run is a test resource; the app's parser and engine produce the expected text.
 - Not done: emulator run (notification seen on screen); HA change not pushed or tried in HA.
-- Heads-up for the owner: HA sends `user_id: "Harper"` (a name), but the plugin matches only the user's Emby id (`ResolveListedUser`). It must already work for you (the Limited Users entry's id must match), but if chore adds ever do nothing, check that first.
+- Heads-up for the owner: HA sent `user_id: "Harper"` (a name), but the plugin matches only the user's Emby id (`ResolveListedUser`). This did break chore adds (found 2026-11-04: clicks did nothing). The HA automations now send Emby ids.
 
 ## Emulator run and HA push (2026-11-03, owner asked for both; test server to be closed afterwards)
 - Emulator check passed (private AVD, debug app build, plugin 2.5.0.0 on the test server, throw-away admin and child user, Hall Monitor alerts switched on with the "Time was added or taken away" rule). Changes sent through the public API as Home Assistant and the app would send them; the posted notifications read:

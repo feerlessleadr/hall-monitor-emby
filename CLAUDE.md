@@ -35,7 +35,7 @@ Routes under `/emby/HallMonitor/`: `Public/Status` (GET) and `Public/{ExtendTime
 - Never print keys or tokens. State what was NOT verified.
 
 ## Gotchas
-- Home Assistant sends `user_id: "Harper"` (a name). The plugin matches an Emby user id via `ResolveListedUser`. Open question: confirm chore adds actually land (see `STATUS.md`).
+- `UserId` in the Public API must be the Emby user id, never a display name (`ResolveListedUser` matches only the id). Home Assistant once sent names and every chore add was silently rejected; fixed on the HA side 2026-11-04 (see `STATUS.md`).
 - `EffectiveDailyLimitMinutes` is 0 for both "no limit" and "limit 0": use the `Limits` list.
 - `ReduceTime` on a 0 limit creates hidden debt paid by the next extension.
 - Regression push-count test has a known timing flake.
